@@ -1,3 +1,10 @@
+# project specific ignore
+/.idea
+/venv
+
+
+#======================= auto ignore ======================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

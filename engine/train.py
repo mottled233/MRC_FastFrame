@@ -8,6 +8,10 @@ from model.network_test import network as network
 class TrainEngine(object):
     """
     训练引擎，支持单机多卡训练
+    参数：
+        train_data_reader： batch化的训练数据集生成器，batch大小必须大于设备数
+        valid_data_reader： batch化的验证数据集生成器，batch大小必须大于设备数
+        args:
     一个所需参数示例：
         args = {
         "max_epoch": 20,
@@ -60,10 +64,20 @@ class TrainEngine(object):
         '''
         USE_PARALLEL = args["use_parallel"]
         if USE_PARALLEL:
+            print("use_parallel")
+            # 设置并行训练的策略
+            # 这里可以用参数配置，不过要改的东西很多，所以先写死吧
+            buildStrategy = fluid.BuildStrategy()
+            buildStrategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
+            # 构建并行过程
             self.train_main_prog = fluid.CompiledProgram(self.train_main_prog)\
-                                    .with_data_parallel(loss_name=self.train_loss.name)
+                                    .with_data_parallel(loss_name=self.train_loss.name,
+                                                        places=self.get_data_run_places(self.args),
+                                                        build_strategy=buildStrategy)
             self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog)\
-                                    .with_data_parallel(share_vars_from=self.train_main_prog)
+                                    .with_data_parallel(share_vars_from=self.train_main_prog,
+                                                        places=self.get_data_run_places(self.args),
+                                                        build_strategy=buildStrategy)
 
     def train(self):
         """
@@ -93,19 +107,27 @@ class TrainEngine(object):
         total_loss = 0
         total_data = 0
         for data in data_loader():
+            batch_size = data[0]['x'].shape()[0]
+            if batch_size < 2:
+                print("abort batch")
+                continue
             loss_value = exe.run(program=program, feed=data, fetch_list=[loss])
             total_loss += loss_value[0]
-            total_data += data[0]['x'][0].shape()[0]
-        # print('train mean loss is {}'.format(total_loss / total_data))
+            total_data += batch_size
+        print('train mean loss is {}'.format(total_loss / total_data))
 
     def run_valid_iterable(self, program, exe, loss, data_loader):
         total_loss = 0
         total_data = 0
         for data in data_loader():
+            batch_size = data[0]['x'].shape()[0]
+            if batch_size < 2:
+                print("abort batch")
+                continue
             loss_value = exe.run(program=program, feed=data, fetch_list=[loss])
             total_loss += loss_value[0]
-            total_data += data[0]['x'][0].shape()[0]
-        # print('valid mean loss is {}'.format(total_loss / total_data))
+            total_data += batch_size
+        print('valid mean loss is {}'.format(total_loss / total_data))
 
     def get_data_run_places(self, args):
         """
@@ -116,17 +138,12 @@ class TrainEngine(object):
         USE_GPU = args["use_gpu"]
         NUM_OF_DEVICE = args["num_of_device"]
 
-        if USE_PARALLEL:
+        if USE_PARALLEL and NUM_OF_DEVICE > 1:
             if USE_GPU:
-                if NUM_OF_DEVICE != -1:
-                    places = fluid.cuda_places(NUM_OF_DEVICE)
-                else:
-                    places = fluid.cuda_places()
+                os.environ['CUDA_VISIBLE_DEVICES'] = str(NUM_OF_DEVICE)
+                places = fluid.cuda_places()
             else:
-                if NUM_OF_DEVICE != -1:
-                    places = fluid.cpu_places(NUM_OF_DEVICE)
-                else:
-                    places = fluid.cpu_places()
+                places = fluid.cpu_places(NUM_OF_DEVICE)
         else:
             if USE_GPU:
                 places = fluid.cuda_places(0)
@@ -137,31 +154,12 @@ class TrainEngine(object):
     def get_executor_run_places(self, args):
         """
         根据获取执行引擎（Executor）的运行位置
-        ! 注意该函数会根据参数修改环境变量中CPU_NUM以控制使用的CPU数，
-        这是由于paddle中除非指定了CPU_NUM否则默认使用所有CPU
-        且由于使用线程分发同一batch数据（gpu是每个卡一个batch），
-        在CPU核心数太多的情况下会报错。
         :return: 运行位置
         """
-        USE_PARALLEL = args["use_parallel"]
         USE_GPU = args["use_gpu"]
-        NUM_OF_DEVICE = args["num_of_device"]
 
-        if USE_PARALLEL:
-            if USE_GPU:
-                if NUM_OF_DEVICE != -1:
-                    places = fluid.CUDAPlace(NUM_OF_DEVICE)
-                else:
-                    places = fluid.CUDAPlace()
-            else:
-                if NUM_OF_DEVICE != -1:
-                    os.environ['CPU_NUM'] = str(NUM_OF_DEVICE)
-                else:
-                    os.environ['CPU_NUM'] = ""
-                places = fluid.CPUPlace()
+        if USE_GPU:
+            places = fluid.CUDAPlace(0)
         else:
-            if USE_GPU:
-                places = fluid.CUDAPlace(0)
-            else:
-                places = fluid.CPUPlace()
+            places = fluid.CPUPlace()
         return places

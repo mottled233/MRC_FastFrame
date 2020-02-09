@@ -1,7 +1,6 @@
 import os,sys
 import getopt
-
-from util_filepath import *
+from util.util_filepath import *
 
 
 class UtilParameter():
@@ -77,3 +76,4 @@ class UtilParameter():
         except KeyError:
             return {}, {}
             # 出现未知模块名，返回错误信息
+

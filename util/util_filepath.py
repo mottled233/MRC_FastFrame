@@ -4,7 +4,7 @@ import csv
 import pickle
 
 
-root = os.path.abspath('..')
+root = os.path.abspath("")
 folder = {"data": "dataset", "example": "examples", "datap": "dataset_processed",
                    "model": "models", "log": "logging", "config": "config"}
 # root: 根目录
@@ -76,3 +76,4 @@ def save_file(content, file_type, file_name, file_format="json"):
     else:
         with open(url, 'wb') as f:
             pickle.dump(content, f)
+

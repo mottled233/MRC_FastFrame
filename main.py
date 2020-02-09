@@ -16,8 +16,8 @@ def fake_sample_generator():
 
 if __name__ == "__main__":
     args = {
-        "max_epoch": 20,
-        "early_stopping": False,
+        "max_epoch": 100,
+        "early_stopping": True,
         "warm_up": False,
         "continue_train": False,
         "model_path": "",
@@ -29,12 +29,13 @@ if __name__ == "__main__":
         "learning_rate_strategy": "linear_warm_up_and_decay",
         "start_learning_rate": 1e-04,
         "warm_up_step": 200,
-        "end_learning_rate": 1e-03,
-        "decay_step": 300,
+        "end_learning_rate": 1e-04,
+        "decay_step": 500,
         "optimizer": "adagrad",
         "adagrad_epsilon": 1e-06,
-        "adagrad_accumulator_value": 0
-
+        "adagrad_accumulator_value": 0,
+        "early_stopping_threshold": 0.03,
+        "early_stopping_times": 5
     }
     reader = fluid.io.batch(fake_sample_generator, batch_size=args["batch_size"])
     train_engine = TrainEngine(reader, reader, args)

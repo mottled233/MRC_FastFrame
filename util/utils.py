@@ -106,8 +106,6 @@ def save_file(content, file_type, file_name, file_format="json"):
 config_menu = {}
 config = {}
 part = ["global", "build", "train", "predict"]
-for k in part:
-    config[k] = {}
 
 def read_config_default(file_name="config_default", file_format="json"):
     # 读入变量定义文件，建立变量目录，并填充默认值
@@ -115,13 +113,15 @@ def read_config_default(file_name="config_default", file_format="json"):
     global config_menu, config
 
     config_menu = read_file(file_type, file_name, file_format)[0]
-    for k in config_menu.keys():
-        if k not in part:
+    for part_name in part:
+        config[part_name] = {}
+    for part_name in config_menu.keys():
+        if part_name not in part:
             continue
-        for kk in config_menu[k].keys():
-            config[k][kk] = config_menu[k][kk]["default"]
+        for k in config_menu[part_name].keys():
+            config[part_name][k] = config_menu[part_name][k]["default"]
 
-read_config_default()
+# read_config_default()
 # print(config)
 
 def read_config_file(file_name, file_format="json"):
@@ -129,22 +129,22 @@ def read_config_file(file_name, file_format="json"):
     file_type = "config"
 
     config_new = read_file(file_type, file_name, file_format)[0]
-    for k in config_new.keys():
-        if k not in part:
+    for part_name in config_new.keys():
+        if part_name not in part:
             continue
-        for kk in config_new[k].keys():
-            if kk in config_menu[k].keys():
-                config[k][kk] = config_new[k][kk]
+        for k in config_new[part_name].keys():
+            if k in config_menu[part_name].keys():
+                config[part_name][k] = config_new[part_name][k]
             else:
-                config_menu[k][kk] = config_new[k][kk]
-                config[k][kk] = config_menu[k][kk]["default"]
+                config_menu[part_name][k] = config_new[part_name][k]
+                config[part_name][k] = config_menu[part_name][k]["default"]
 
 # read_config_file("config_new")
 # print(config)
 
 def set_config(argv):
     # 录入从命令行获取的参数值，只处理长格式
-    
+
     config_list = []
     for part_name in part:
         for k in config_menu[part_name].keys():
@@ -160,7 +160,7 @@ def set_config(argv):
                 if option == '--' + k:
                     config[part_name][k] = value
 
-set_config(sys.argv[1:])
+# set_config(sys.argv[1:])
 # print(config)
 
 def get_config(part_name):
@@ -237,4 +237,4 @@ def log_input(level, message):
     elif level == 'critical':
         logger.critical(message)
 
-log_init()
+# log_init()

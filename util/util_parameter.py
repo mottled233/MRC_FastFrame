@@ -4,11 +4,9 @@ import getopt
 from util_filepath import *
 
 
-class util_parameter(util_filepath):
+class UtilParameter():
 
     def __init__(self):
-
-        super().__init__()
 
         self.config_menu = {}
         self.config = {}
@@ -23,7 +21,7 @@ class util_parameter(util_filepath):
         # 读入变量定义文件，建立变量目录，并填充默认值
         file_type = "config"
 
-        self.config_menu = self.read_file(file_type, file_name, file_format)[0]
+        self.config_menu = read_file(file_type, file_name, file_format)[0]
         for part_name in self.part:
             self.config[part_name] = {}
         for part_name in self.config_menu.keys():
@@ -38,7 +36,7 @@ class util_parameter(util_filepath):
         # 读入变量设置文件，管理新定义的变量，并读入其他设置值
         file_type = "config"
 
-        config_new = self.read_file(file_type, file_name, file_format)[0]
+        config_new = read_file(file_type, file_name, file_format)[0]
         for part_name in config_new.keys():
             try:
                 for k in config_new[part_name].keys():

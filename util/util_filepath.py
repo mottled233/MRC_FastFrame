@@ -4,79 +4,75 @@ import csv
 import pickle
 
 
-class util_filepath():
+root = os.path.abspath('..')
+folder = {"data": "dataset", "example": "examples", "datap": "dataset_processed",
+                   "model": "models", "log": "logging", "config": "config"}
+# root: 根目录
+# folder: 文件类型对应保存文件名
 
-    def __init__(self):
+def get_fullurl(file_type, file_name, file_format="json"):
+    # file_type文件类型，file_name文件名，file_format文件格式（默认json）
+    # 生成完整文件路径
 
-        self.root = os.path.abspath('..')
-        self.folder = {"data": "dataset", "example": "examples", "datap": "dataset_processed",
-                       "model": "models", "log": "logging", "config": "config"}
-        # root: 根目录
-        # folder: 文件类型对应保存文件名
+    url = root + "/File_Directory"
+    try:
+        url += '/' + folder[file_type]
+    except KeyError:
+        return ""
+        # 未知文件种类，返回错误信息
+    url += '/' + file_name
+    if file_format != "pickle":
+        url += '.' + file_format
+    return url
 
-    def get_fullurl(self, file_type, file_name, file_format="json"):
-        # file_type文件类型，file_name文件名，file_format文件格式（默认json）
-        # 生成完整文件路径
+def read_file(file_type, file_name, file_format="json"):
+    # 对指定文件进行读取操作，自动调用路径生成
+    url = get_fullurl(file_type, file_name, file_format)
+    content = []
 
-        url = self.root + "/File_Directory"
-        try:
-            url += '/' + self.folder[file_type]
-        except KeyError:
-            return ""
-            # 未知文件种类，返回错误信息
-        url += '/' + file_name
-        if file_format != "pickle":
-            url += '.' + file_format
-        return url
-
-    def read_file(self, file_type, file_name, file_format="json"):
-        # 对指定文件进行读取操作，自动调用路径生成
-        url = self.get_fullurl(file_type, file_name, file_format)
-        content = []
-
-        if file_format != "pickle":
-            with open(url, 'r', encoding="utf-8") as f:
-                for line in f.readlines():
-                    if file_format == "json":
-                        item = json.loads(line)
-                    elif file_format == "csv":
-                        item = line.replace('\n', '').split(',')
-                    elif file_format == "tsv":
-                        item = line.replace('\n', '').split('\t')
-                    # print(item)
-                    content.append(item)
-        else:
-            with open(url, 'rb') as f:
-                content = pickle.load(f)
-
-        return content
-
-    def save_file(self, content, file_type, file_name, file_format="json"):
-        # 将存储内容写入指定位置，自动调用路径生成
-        url = self.get_fullurl(file_type, file_name, file_format)
-
-        if file_format != "pickle":
-            with open(url, 'w', encoding='utf-8', newline='') as f:
+    if file_format != "pickle":
+        with open(url, 'r', encoding="utf-8") as f:
+            for line in f.readlines():
                 if file_format == "json":
-                    for line in content:
-                        jsonstr = json.dumps(line)
-                        f.write(jsonstr)
-                        f.write('\n')
+                    item = json.loads(line)
                 elif file_format == "csv":
-                    writer = csv.writer(f)
-                    for line in content:
-                        writer.writerow(line)
+                    item = line.replace('\n', '').split(',')
                 elif file_format == "tsv":
-                    for line in content:
-                        s = str(line[0])
-                        for i in range(1, len(line)):
-                            s += '\t' + str(line[i])
-                        f.write(s)
-                        f.write('\n')
-                elif file_format == "txt":
-                    for line in content:
-                        f.write(line)
-                        f.write('\n')
-        else:
-            with open(url, 'wb') as f:
-                pickle.dump(content, f)
+                    item = line.replace('\n', '').split('\t')
+                # print(item)
+                content.append(item)
+    else:
+        with open(url, 'rb') as f:
+            content = pickle.load(f)
+
+    return content
+
+def save_file(content, file_type, file_name, file_format="json"):
+    # 将存储内容写入指定位置，自动调用路径生成
+    url = get_fullurl(file_type, file_name, file_format)
+
+    if file_format != "pickle":
+        with open(url, 'w', encoding='utf-8', newline='') as f:
+            if file_format == "json":
+                for line in content:
+                    jsonstr = json.dumps(line)
+                    f.write(jsonstr)
+                    f.write('\n')
+            elif file_format == "csv":
+                writer = csv.writer(f)
+                for line in content:
+                    writer.writerow(line)
+            elif file_format == "tsv":
+                for line in content:
+                    s = str(line[0])
+                    for i in range(1, len(line)):
+                        s += '\t' + str(line[i])
+                    f.write(s)
+                    f.write('\n')
+            elif file_format == "txt":
+                for line in content:
+                    f.write(line)
+                    f.write('\n')
+    else:
+        with open(url, 'wb') as f:
+            pickle.dump(content, f)

@@ -2,7 +2,11 @@ import paddle
 import paddle.fluid as fluid
 import numpy as np
 import os
+
+import model.optimizer
+import model.lr_stategy as lr_strategy
 from model.network_test import network as network
+
 
 
 class TrainEngine(object):
@@ -36,10 +40,14 @@ class TrainEngine(object):
         with fluid.program_guard(self.train_main_prog, self.train_startup_prog):
             # 使用 fluid.unique_name.guard() 实现与test program的参数共享
             with fluid.unique_name.guard():
-                train_data_loader, optimizer, train_loss = network(self.args, train=True)  # 一些网络定义
+                train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                # 获取训练策略
+                learning_rate = lr_strategy.get_strategy(self.args)
+                optimizer = model.optimizer.get_optimizer(learning_rate, self.args, regularization=None)
+                optimizer.minimize(train_loss)
 
+        # 为训练过程设置数据集
         train_data_loader.set_sample_list_generator(train_data_reader, places=self.get_data_run_places(self.args))
-
         self.train_data_loader = train_data_loader
         self.optimizer = optimizer
         self.train_loss = train_loss
@@ -99,32 +107,38 @@ class TrainEngine(object):
         # TODO 应该有是否读入已有模型
 
         for epoch_id in range(MAX_EPOCH):
-            # TODO 训练策略等
-            self.run_train_iterable(self.train_main_prog, executor, self.train_loss, self.train_data_loader)
-            self.run_valid_iterable(self.valid_main_prog, executor, self.valid_loss, self.valid_data_loader)
+            self.__run_train_iterable(executor)
+            self.valid(executor)
 
-    def run_train_iterable(self, program, exe, loss, data_loader):
+    def __run_train_iterable(self, executor):
+        """
+        对训练过程的一个epoch的执行
+        """
         total_loss = 0
         total_data = 0
-        for data in data_loader():
+        for data in self.train_data_loader():
+            # 为获取字段名，这里需要改
             batch_size = data[0]['x'].shape()[0]
             if batch_size < 2:
                 print("abort batch")
                 continue
-            loss_value = exe.run(program=program, feed=data, fetch_list=[loss])
+            loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
             total_loss += loss_value[0]
             total_data += batch_size
         print('train mean loss is {}'.format(total_loss / total_data))
 
-    def run_valid_iterable(self, program, exe, loss, data_loader):
+    def valid(self, exe):
+        """
+            对验证过程的一个epoch的执行
+        """
         total_loss = 0
         total_data = 0
-        for data in data_loader():
+        for data in self.valid_data_loader():
             batch_size = data[0]['x'].shape()[0]
             if batch_size < 2:
                 print("abort batch")
                 continue
-            loss_value = exe.run(program=program, feed=data, fetch_list=[loss])
+            loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss])
             total_loss += loss_value[0]
             total_data += batch_size
         print('valid mean loss is {}'.format(total_loss / total_data))
@@ -163,3 +177,5 @@ class TrainEngine(object):
         else:
             places = fluid.CPUPlace()
         return places
+
+

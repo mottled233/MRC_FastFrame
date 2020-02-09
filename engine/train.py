@@ -66,6 +66,9 @@ class TrainEngine(object):
 
         self.valid_data_loader = valid_data_loader
         self.valid_loss = valid_loss
+        # 对训练状态的记录
+        self.pre_epoch_valid_loss = float("inf")
+        self.standstill_count = 0
 
         '''
         过程并行化
@@ -94,6 +97,9 @@ class TrainEngine(object):
         """
         MAX_EPOCH = self.args["max_epoch"]
         EARLY_STOPPING = self.args["early_stopping"]
+        if EARLY_STOPPING:
+            THRESHOLD = self.args["early_stopping_threshold"]
+            STANDSTILL_STEP = self.args["early_stopping_times"]
         WARM_UP = self.args["warm_up"]
         CONTINUE = self.args["continue_train"]
         if CONTINUE:
@@ -105,10 +111,18 @@ class TrainEngine(object):
         # 执行初始化
         executor.run(self.train_startup_prog)
         # TODO 应该有是否读入已有模型
-
+        # 执行MAX_EPOCH次迭代
         for epoch_id in range(MAX_EPOCH):
+            # 一个epoch的训练过程，一个迭代
             self.__run_train_iterable(executor)
-            self.valid(executor)
+            # 进行一次验证集上的验证
+            valid_loss = self.valid(executor)
+            # 应用早停策略
+            if EARLY_STOPPING:
+                need_stop = self.early_stopping_strategy(valid_loss, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
+                if need_stop:
+                    break
+        # TODO 保存现有模型
 
     def __run_train_iterable(self, executor):
         """
@@ -125,12 +139,14 @@ class TrainEngine(object):
             loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
             total_loss += loss_value[0]
             total_data += batch_size
-        print('train mean loss is {}'.format(total_loss / total_data))
+        mean_loss = total_loss / total_data
+        print('train mean loss is {}'.format(mean_loss))
 
     def valid(self, exe):
         """
             对验证过程的一个epoch的执行
         """
+
         total_loss = 0
         total_data = 0
         for data in self.valid_data_loader():
@@ -141,7 +157,9 @@ class TrainEngine(object):
             loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss])
             total_loss += loss_value[0]
             total_data += batch_size
-        print('valid mean loss is {}'.format(total_loss / total_data))
+        mean_loss = total_loss / total_data
+        print('train mean loss is {}'.format(mean_loss))
+        return mean_loss
 
     def get_data_run_places(self, args):
         """
@@ -165,6 +183,7 @@ class TrainEngine(object):
                 places = fluid.cpu_places(1)
         return places
 
+
     def get_executor_run_places(self, args):
         """
         根据获取执行引擎（Executor）的运行位置
@@ -177,5 +196,28 @@ class TrainEngine(object):
         else:
             places = fluid.CPUPlace()
         return places
+
+    def early_stopping_strategy(self, current_valid_loss, threshold, standstill_step):
+        """
+        应用早停策略，当判断为停滞时及时中断训练过程
+        :param current_valid_loss: 本次验证的loss（或准确率，此时传入的准确率应该加负号）
+        :param threshold: 判断为停滞的阈值，当性能增长（指loss下降）不超过这个比例时判断为停滞
+        :param standstill_step: 每次停滞都会被计数，连续停滞的次数超过几次后终止训练
+        :return: 是否应该终止训练过程
+        """
+        current_valid_loss = np.sum(current_valid_loss)
+        promote = self.pre_epoch_valid_loss - current_valid_loss
+        promote_rate = promote / np.abs(self.pre_epoch_valid_loss)
+        print(promote_rate)
+        if promote_rate < threshold:
+            self.standstill_count += 1
+            if self.standstill_count > standstill_step:
+                return True
+        else:
+            self.standstill_count = 0
+            self.pre_epoch_valid_loss = current_valid_loss
+        return False
+
+
 
 

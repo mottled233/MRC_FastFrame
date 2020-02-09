@@ -3,10 +3,11 @@ import datetime
 import json
 import logging
 
+from util_filepath import *
 from util_parameter import *
 
 
-class util_logging(util_parameter):
+class UtilLogging(UtilParameter):
 
     def __init__(self):
 
@@ -17,7 +18,7 @@ class util_logging(util_parameter):
         # 用当前时间为本次日志命名
 
         self.logger = logging.getLogger(__name__)
-        self.file_handler = logging.FileHandler(self.get_fullurl("log", self.log_name, "txt"))
+        self.file_handler = logging.FileHandler(get_fullurl("log", self.log_name, "txt"))
         self.stream_handler = logging.StreamHandler()
         self.formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
         # file_handler: 文件输出
@@ -41,7 +42,7 @@ class util_logging(util_parameter):
         content.append(jsonstr)
         # 输出可进行使用的json格式参数配置
         content.append('\n\n')
-        self.save_file(content, "log", self.log_name, 'txt')
+        save_file(content, "log", self.log_name, 'txt')
 
         self.logger.setLevel(level=logging.INFO)
         self.file_handler.setLevel(logging.INFO)
@@ -67,9 +68,8 @@ class util_logging(util_parameter):
             self.logger.critical(message)
 
 
-"""
-util = util_logging()
+
+util = UtilLogging()
 util.read_config_default()
 util.log_init()
 util.log_input(5, "success!")
-"""

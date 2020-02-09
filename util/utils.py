@@ -3,6 +3,7 @@ import datetime
 import json
 import csv
 import pickle
+import getopt
 import logging
 
 
@@ -141,66 +142,25 @@ def read_config_file(file_name, file_format="json"):
 # read_config_file("config_new")
 # print(config)
 
-def get_value(value_type, value):
-    if value_type == "string":
-        return value
-    elif value_type == "bool":
-        value = value.lower()
-        if value == "true":
-            return True
-        elif value == "false":
-            return False
-        else:
-            return ""
-            # 返回错误信息
-    elif value_type == "int":
-        return int(value)
-    elif value_type == "float":
-        return float(value)
-    else:
-        return ""
-        # 返回错误信息
+def set_config(argv):
+    # 录入从命令行获取的参数值，只处理长格式
+    
+    config_list = []
+    for part_name in part:
+        for k in config_menu[part_name].keys():
+            config_list.append(k + '=')
+    try:
+        options, args = getopt.getopt(argv, "", config_list)
+    except getopt.GetoptError:
+        sys.exit()
 
-def set_config():
-    # 键盘录入需要的函数值
-    # 以[part_name.]key=value的格式输入，输入"exit"结束
-    s = input()
-    while s != 'exit':
+    for option, value in options:
+        for part_name in part:
+            for k in config_menu[part_name].keys():
+                if option == '--' + k:
+                    config[part_name][k] = value
 
-        s = s.replace(' ', '')
-        temp, value = s.split('=')[0], s.split('=')[1]
-        temp = temp.split('.')
-        if len(temp) == 1:
-            part_name = ""
-            key = temp[0]
-        else:
-            part_name = temp[0]
-            key = temp[1]
-
-        if part_name != "":
-            if part_name not in part:
-                print("No such part!!")
-            elif key not in config_menu[part_name].keys():
-                print("No such parameter!!")
-            else:
-                config[part_name][key] = get_value(config_menu[part_name][key]["type"], value)
-        else:
-            num = 0
-            for part_name in ["build", "train"]:
-                if key in config_menu[part_name].keys():
-                    num += 1
-                    p = part_name
-            if num == 0:
-                print("No such parameter!!")
-            elif num > 1:
-                print("More than 1 parameter!!")
-            else:
-                config[p][key] = get_value(config_menu[p][key]["type"], value)
-
-        # print(config)
-        s = input()
-
-# set_config()
+set_config(sys.argv[1:])
 # print(config)
 
 def get_config(part_name):
@@ -216,6 +176,7 @@ def get_config(part_name):
 --------------------util_logging--------------------
 '''
 
+#用当前时间为本次日志命名
 present_time = datetime.datetime.now()
 log_name = datetime.datetime.strftime(present_time, '%Y-%m-%d %H-%M-%S')
 
@@ -237,6 +198,8 @@ formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(lev
 # %(message)s：打印日志信息
 
 def log_init():
+    # 初始化日志文件，并写入参数表
+
     content = []
     for part_name in part:
         content.append(part_name)
@@ -246,6 +209,8 @@ def log_init():
             content.append("    |---description: " + str(config_menu[part_name][k]["description"]))
             content.append("    |---value: " + str(config[part_name][k]))
         content.append('')
+    jsonstr = json.dumps(config)
+    content.append(jsonstr)
     content.append('\n\n')
     save_file(content, "log", log_name, 'txt')
 
@@ -259,6 +224,8 @@ def log_init():
     logger.addHandler(stream_handler)
 
 def log_input(level, message):
+    # 记录日志信息，会同步输出到命令行和日志文件中
+
     if level == 'debug':
         logger.debug(message)
     elif level == 'info':

@@ -1,6 +1,7 @@
 # project specific ignore
 /.idea
 /venv
+*.slurm
 
 
 #======================= auto ignore ======================

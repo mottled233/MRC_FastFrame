@@ -3,6 +3,10 @@ import paddle.fluid as fluid
 
 
 def get_strategy(args):
+    """
+    根据配置，返回相应的学习率变化策略
+    :return: 学习率变量（Vars）
+    """
     STRATEGY = args["learning_rate_strategy"]
 
     strategies = {

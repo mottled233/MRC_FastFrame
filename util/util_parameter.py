@@ -3,7 +3,7 @@ import getopt
 from util.util_filepath import *
 
 
-class UtilParameter():
+class UtilParameter:
 
     def __init__(self):
 

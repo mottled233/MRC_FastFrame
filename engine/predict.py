@@ -2,17 +2,18 @@ import paddle
 import paddle.fluid as fluid
 import os
 import numpy as np
-from util.model_utils import load_model_params,load_model
+from util.model_utils import load_model_params, load_model
 import json as js
-#from model.classifier import create_model
+# from model.classifier import create_model
 import time
+
 
 class PredictEngine(object):
 
     def __init__(self, test_data_reader, args):
-        '''
+        """
         创建预测过程
-        '''
+        """
         self.args = args
         self.predict_prog = fluid.Program()
         self.predict_startup = fluid.Program()
@@ -107,7 +108,6 @@ class PredictEngine(object):
         else:
             places = fluid.CPUPlace()
         return places
-
 
 
 if __name__ == '__main__':

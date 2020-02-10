@@ -3,14 +3,13 @@ import json as js
 import os
 import pickle
 
-
 class Dataset:
-    examples = []
-    train_examples = []
-    dev_examples = []
-    test_examples = []
+    def __init__(self):
+        self.examples = []
+        self.train_examples = []
+        self.dev_examples = []
+        self.test_examples = []
 
-    # 列表按比例分割成两份
     def __split(self, full_list, ratio):
         n_total = len(full_list)
         offset = int(n_total * ratio)
@@ -20,10 +19,10 @@ class Dataset:
         sublist_2 = full_list[offset:]
         return sublist_1, sublist_2
 
-    def read_dataset(self, dataset_path, div_str):
+    def read_dataset(self, div_str):
         files = []
-        file1 = open(os.getcwd() + "/data/zhidao.train.json", "r", encoding='utf-8')
-        file2 = open(os.getcwd() + "/data/search.train.json", "r", encoding='utf-8')
+        file1 = open(os.getcwd() + "/data/zhidao.train.json", "r", encoding= 'utf-8')
+        file2 = open(os.getcwd() + "/data/zhidao.train.json", "r", encoding='utf-8')
         files.append(file1)
         files.append(file2)
 
@@ -93,6 +92,9 @@ class Dataset:
             pickle.dump(self.dev_examples, f_dev)
         with open(os.getcwd() + '/data/test_examples', 'wb') as f_test:
             pickle.dump(self.test_examples, f_test)
+        #save_file(self.train_examples, "example", "train", "pickle")
+        #save_file(self.dev_examples, "example", "train", "pickle")
+        #save_file(self.test_examples, "example", "train", "pickle")
         return
 
     def load_examples(self):
@@ -102,4 +104,8 @@ class Dataset:
             self.dev_examples = pickle.load(f_dev)
         with open(os.getcwd() + '/data/test_examples', 'rb') as f_test:
             self.test_examples = pickle.load(f_test)
+        #read_file("example", "train", "pickle")
+        #read_file("example", "dev", "pickle")
+        #read_file("example", "test", "pickle")
         return
+

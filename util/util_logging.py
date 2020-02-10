@@ -11,7 +11,7 @@ class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
 
-    def __init__(self, u_param, if_file=True, if_stream=True):
+    def __init__(self, u_param, is_file=True, is_stream=True):
         # 选择是否写入文件与输出到控制台
 
         present_time = datetime.datetime.now()
@@ -30,11 +30,11 @@ class UtilLogging:
         self.logger.setLevel(level = logging.DEBUG) # 设置整体最低层级为debug
         self.set_file_level(2)
         self.file_handler.setFormatter(self.formatter)
-        if if_file:
+        if is_file:
             self.logger.addHandler(self.file_handler)
         self.set_stream_level(2)
         self.stream_handler.setFormatter(self.formatter)
-        if if_stream:
+        if is_stream:
             self.logger.addHandler(self.stream_handler)
 
         self.log_config(u_param)

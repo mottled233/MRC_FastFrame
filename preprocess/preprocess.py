@@ -17,7 +17,7 @@ class PreProcess():
         exams = read_file(file_type, file_name, file_format)
         return exams
 
-    def exams_tokenize(self, exams, token_id=1):
+    def exams_tokenize(self, exams, token_id=2):
         # 完成对list of Example中question和answer的tokenize，并返回结果
         # token_id=1时返回tokens，token_id=2时返回ids
 
@@ -98,10 +98,13 @@ class PreProcess():
         return prepare_batch_data(insts, max_len, total_token_num, voc_size, pad_id, cls_id, sep_id, mask_id,
                                   return_input_mask, return_max_len, return_num_token)
 
-    def batch(self, file_name, file_format="pickle", file_type="example"):
+    def batch(self, file_name, file_format="pickle", file_type="example", is_save=False):
 
         exams = self.get_examples(file_name, file_format, file_type)
-        ques_ids, ans_ids = self.exams_tokenize(exams, token_id=2)
+        ques_ids, ans_ids = self.exams_tokenize(exams)
+        if is_save:
+            self.save_tokens(ques_ids, file_name + "_ques_processed")
+            self.save_tokens(ans_ids, file_name + "_ans_processed")
         batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
         batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
         insts = self.pad_batch_data(batch_tokens, self.max_seq_length)

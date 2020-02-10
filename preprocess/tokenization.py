@@ -149,7 +149,7 @@ class FullTokenizer(object):
 
     def tokenize(self, text):
         # 输入：str
-        # 输出：list of
+        # 输出：list of str
 
         split_tokens = []
         for token in self.basic_tokenizer.tokenize(text):
@@ -177,7 +177,7 @@ class CharTokenizer(object):
 
     def tokenize(self, text):
         # 输入：str
-        # 输出：list of
+        # 输出：list of str
 
         split_tokens = []
         for token in text.lower().split(" "):

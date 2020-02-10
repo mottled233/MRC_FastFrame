@@ -1,17 +1,6 @@
-#   Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""BERT model."""
+"""
+bert的paddle实现
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -19,12 +8,12 @@ from __future__ import print_function
 
 import six
 import json
-import numpy as np
 import paddle.fluid as fluid
 from model.transformer import transformer_encoder as encoder
 from model.transformer import pre_process_layer
 
 
+# 记录Bert相关参数的Config类
 class BertConfig(object):
     """ 根据config_path来读取网络的配置 """
 
@@ -50,7 +39,14 @@ class BertConfig(object):
         print('------------------------------------------------')
 
 
+# Bert模型
+# 以(src_ids, position_ids, sentence_ids, input_mask）作为输入
+# 主要结构为embedding、transformer_encoder两层
+# 有三种返回结果，返回整个seq每个位置的输出，只返回[CLS]对应的输出，和返回预训练过程所进行的mask_prediction
+# 和next_sentence_prediction两个任务的loss。
 class BertModel(object):
+
+    # 根据传入的config设置网络参数
     def __init__(self,
                  src_ids,
                  position_ids,
@@ -76,15 +72,16 @@ class BertModel(object):
         self._sent_emb_name = "sent_embedding"
         self._dtype = "float16" if use_fp16 else "float32"
 
-        # Initialize all weigths by truncated normal initializer, and all biases
-        # will be initialized by constant zero by default.
+        # 使用truncated normal initializer进行参数的初始化, 且biases
+        # 默认初始化为0
         self._param_initializer = fluid.initializer.TruncatedNormal(
             scale=config['initializer_range'])
 
         self._build_model(src_ids, position_ids, sentence_ids, input_mask)
 
+    # 进行模型的搭建工作
     def _build_model(self, src_ids, position_ids, sentence_ids, input_mask):
-        # padding id in vocabulary must be set to 0
+        # padding对应的词表中的id必须为0
         # 模型中的三种embedding
         emb_out = fluid.layers.embedding(
             input=src_ids,
@@ -143,9 +140,11 @@ class BertModel(object):
             param_initializer=self._param_initializer,
             name='encoder')
 
+    # 返回序列每个位置的token对应的输出
     def get_sequence_output(self):
         return self._enc_out
 
+    # 只返回[CLS]的输出
     def get_pooled_output(self):
         """Get the first feature of each sequence for classification"""
 
@@ -160,19 +159,21 @@ class BertModel(object):
             bias_attr="pooled_fc.b_0")
         return next_sent_feat
 
+    # 返回预训练任务的loss
     def get_pretraining_output(self, mask_label, mask_pos, labels):
         """Get the loss & accuracy for pretraining"""
 
         mask_pos = fluid.layers.cast(x=mask_pos, dtype='int32')
 
-        # extract the first token feature in each sentence
+        # 得到[CLS]对应的输出
         next_sent_feat = self.get_pooled_output()
         reshaped_emb_out = fluid.layers.reshape(
             x=self._enc_out, shape=[-1, self._emb_size])
-        # extract masked tokens' feature
+
+        # 得到被mask位置的输出
         mask_feat = fluid.layers.gather(input=reshaped_emb_out, index=mask_pos)
 
-        # transform: fc
+        # 全连接
         mask_trans_feat = fluid.layers.fc(
             input=mask_feat,
             size=self._emb_size,
@@ -181,14 +182,17 @@ class BertModel(object):
                 name='mask_lm_trans_fc.w_0',
                 initializer=self._param_initializer),
             bias_attr=fluid.ParamAttr(name='mask_lm_trans_fc.b_0'))
-        # transform: layer norm
+
+        # layer norm
         mask_trans_feat = pre_process_layer(
             mask_trans_feat, 'n', name='mask_lm_trans')
 
         mask_lm_out_bias_attr = fluid.ParamAttr(
             name="mask_lm_out_fc.b_0",
             initializer=fluid.initializer.Constant(value=0.0))
+
         if self._weight_sharing:
+            # 计算mask部分的预测结果
             fc_out = fluid.layers.matmul(
                 x=mask_trans_feat,
                 y=fluid.default_main_program().global_block().var(
@@ -201,6 +205,7 @@ class BertModel(object):
                 is_bias=True)
 
         else:
+            # 计算mask部分的预测结果
             fc_out = fluid.layers.fc(input=mask_trans_feat,
                                      size=self._voc_size,
                                      param_attr=fluid.ParamAttr(
@@ -208,10 +213,12 @@ class BertModel(object):
                                          initializer=self._param_initializer),
                                      bias_attr=mask_lm_out_bias_attr)
 
+        # 计算mask预测任务的loss
         mask_lm_loss = fluid.layers.softmax_with_cross_entropy(
             logits=fc_out, label=mask_label)
         mean_mask_lm_loss = fluid.layers.mean(mask_lm_loss)
 
+        # 计算next_sentence部分的结果
         next_sent_fc_out = fluid.layers.fc(
             input=next_sent_feat,
             size=2,
@@ -219,6 +226,7 @@ class BertModel(object):
                 name="next_sent_fc.w_0", initializer=self._param_initializer),
             bias_attr="next_sent_fc.b_0")
 
+        # 计算next_sentence部分的loss
         next_sent_loss, next_sent_softmax = fluid.layers.softmax_with_cross_entropy(
             logits=next_sent_fc_out, label=labels, return_softmax=True)
 

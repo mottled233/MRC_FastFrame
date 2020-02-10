@@ -10,6 +10,8 @@ import paddle.fluid as fluid
 import paddle.fluid.layers as layers
 
 
+# transformer_encoder结构的实现
+# transformer_encoder的主题为依次连接的多层encoder层
 def transformer_encoder(inputs,
                         attention_bias,
                         num_attention_layers,
@@ -28,6 +30,7 @@ def transformer_encoder(inputs,
                         name=''):
 
     enc_input = inputs
+    # 多层encoder依次相连
     for i in range(num_attention_layers):
         enc_output = encoder_layer(
             enc_input,
@@ -53,6 +56,8 @@ def transformer_encoder(inputs,
     return enc_output
 
 
+# encoder层的实现
+# encoder层的主体为multi_head_attention和前馈神经网络
 def encoder_layer(inputs,
                   attention_bias,
                   num_attention_heads,
@@ -69,6 +74,7 @@ def encoder_layer(inputs,
                   param_initializer=None,
                   name=''
                   ):
+    # multi_head_attention
     attn_output = multi_head_attention(
         pre_process_layer(
             inputs,
@@ -92,6 +98,7 @@ def encoder_layer(inputs,
         post_and_pre_process_dropout,
         name=name + '_post_att')
 
+    # 前馈神经网络层
     ffd_output = feed_forward_layer(
         pre_process_layer(
             attn_output,
@@ -114,6 +121,7 @@ def encoder_layer(inputs,
 
 
 # 对encoder_layer中前馈层的实现
+# 其主体为两个全连接层，一层实现hidden_size到inner_hidden_size的转化，另一层实现inner_hidden_size到hidden_size的转化
 def feed_forward_layer(x,
                        hidden_size,
                        inner_hidden_size,
@@ -122,6 +130,7 @@ def feed_forward_layer(x,
                        param_initializer=None,
                        name='ffn'):
 
+    # 将维数为hidden_size的向量转化为inner_hidden_size
     hidden = layers.fc(input=x,
                        size=inner_hidden_size,
                        num_flatten_dims=2,
@@ -136,6 +145,8 @@ def feed_forward_layer(x,
             dropout_prob=dropout_rate,
             dropout_implementation="upscale_in_train",
             is_test=False)
+
+    # 将维数为inner_hidden_size的向量转化为hidden_size
     out = layers.fc(input=hidden,
                     size=hidden_size,
                     num_flatten_dims=2,
@@ -145,18 +156,15 @@ def feed_forward_layer(x,
     return out
 
 
+# 实现dropout、输入相加、normalization的前处理、后处理层
+# 一般接在其他层之前或之后，对输入输出进行处理
 def pre_post_process_layer(prev_out, out, process_cmd, dropout_rate=0.,
                            name=''):
-    """
-    Add residual connection, layer normalization and droput to the out tensor
-    optionally according to the value of process_cmd.
-    This will be used before or after multi-head attention and position-wise
-    feed-forward networks.
-    """
+
     for cmd in process_cmd:
-        if cmd == "a":  # add residual connection
+        if cmd == "a":  # 两个输入相加
             out = out + prev_out if prev_out else out
-        elif cmd == "n":  # add layer normalization
+        elif cmd == "n":  # 进行normalization
             out_type = out.dtype
             if out_type == fluid.core.VarDesc.VarType.FP16:
                 out = layers.cast(x=out, dtype="float32")
@@ -171,7 +179,7 @@ def pre_post_process_layer(prev_out, out, process_cmd, dropout_rate=0.,
                     initializer=fluid.initializer.Constant(0.)))
             if out_type == fluid.core.VarDesc.VarType.FP16:
                 out = layers.cast(x=out, dtype="float16")
-        elif cmd == "d":  # add dropout
+        elif cmd == "d":  # 进行dropout
             if dropout_rate:
                 out = layers.dropout(
                     out,
@@ -181,6 +189,9 @@ def pre_post_process_layer(prev_out, out, process_cmd, dropout_rate=0.,
     return out
 
 
+# 对多头attention计算的实现
+# 通过queries和keys计算attention值，并依此对values进行加权求和
+# attention_bias可实现对某些位置的mask作用
 def multi_head_attention(queries,
                          keys,
                          values,
@@ -193,11 +204,7 @@ def multi_head_attention(queries,
                          cache=None,
                          param_initializer=None,
                          name='multi_head_att'):
-    """
-    Multi-Head Attention. Note that attn_bias is added to the logit before
-    computing softmax activiation to mask certain selected positions so that
-    they will not considered in attention weights.
-    """
+
     keys = queries if keys is None else keys
     values = keys if values is None else values
 
@@ -205,10 +212,11 @@ def multi_head_attention(queries,
         raise ValueError(
             "Inputs: quries, keys and values should all be 3-D tensors.")
 
+    # 以下为函数定义部分
+    # 定义了一系列计算attention所需的函数
+
+    # 定义q、k、v三个矩阵，将输入的queries、keys、values与三个矩阵相乘得到用于计算的q、k、v
     def __compute_qkv(queries, keys, values, n_head, key_size, value_size):
-        """
-        Add linear projection to queries, keys, and values.
-        """
         q = layers.fc(input=queries,
                       size=key_size * n_head,
                       num_flatten_dims=2,
@@ -232,44 +240,30 @@ def multi_head_attention(queries,
                       bias_attr=name + '_value_fc.b_0')
         return q, k, v
 
+    # 将输入的[batch_size, max_sequence_length, n_head * hidden_dim]维度的向量转换为[batch_size, n_head, max_sequence_length,
+    # hidden_dim]维度，以便后续的多头attention计算
     def __split_heads(x, num_head):
-        """
-        Reshape the last dimension of inpunt tensor x so that it becomes two
-        dimensions and then transpose. Specifically, input a tensor with shape
-        [bs, max_sequence_length, n_head * hidden_dim] then output a tensor
-        with shape [bs, n_head, max_sequence_length, hidden_dim].
-        """
         hidden_size = x.shape[-1]
-        # The value 0 in shape attr means copying the corresponding dimension
-        # size of the input as the output dimension size.
         reshaped = layers.reshape(
             x=x, shape=[0, 0, num_head, hidden_size // num_head], inplace=True)
-
-        # permuate the dimensions into:
-        # [batch_size, n_head, max_sequence_len, hidden_size_per_head]
         return layers.transpose(x=reshaped, perm=[0, 2, 1, 3])
 
+    # 对_split_heads的逆操作，将[batch_size, n_head, max_sequence_length,hidden_dim]维的向量转化回[batch_size,
+    # max_sequence_length, n_head * hidden_dim]维度
     def __combine_heads(x):
-        """
-        Transpose and then reshape the last two dimensions of inpunt tensor x
-        so that it becomes one dimension, which is reverse to __split_heads.
-        """
+
         if len(x.shape) == 3: return x
         if len(x.shape) != 4:
             raise ValueError("Input(x) should be a 4-D Tensor.")
 
         trans_x = layers.transpose(x, perm=[0, 2, 1, 3])
-        # The value 0 in shape attr means copying the corresponding dimension
-        # size of the input as the output dimension size.
         return layers.reshape(
             x=trans_x,
             shape=[0, 0, trans_x.shape[2] * trans_x.shape[3]],
             inplace=True)
 
+    # 计算q与k的点积，并凭此对v加权求和
     def scaled_dot_product_attention(q, k, v, attn_bias, d_key, dropout_rate):
-        """
-        Scaled Dot-Product Attention
-        """
         scaled_q = layers.scale(x=q, scale=d_key**-0.5)
         product = layers.matmul(x=scaled_q, y=k, transpose_y=True)
         if attn_bias:
@@ -284,6 +278,8 @@ def multi_head_attention(queries,
         out = layers.matmul(weights, v)
         return out
 
+    # 函数定义部分结束
+    # 开始计算attention
     q, k, v = __compute_qkv(queries, keys, values, n_head, key_size, value_size)
 
     if cache is not None:  # use cache and concat time steps
@@ -297,6 +293,7 @@ def multi_head_attention(queries,
             [layers.reshape(
                 cache["v"], shape=[0, 0, hidden_size]), v], axis=1)
 
+    # 转化向量维度
     q = __split_heads(q, n_head)
     k = __split_heads(k, n_head)
     v = __split_heads(v, n_head)
@@ -306,7 +303,7 @@ def multi_head_attention(queries,
 
     out = __combine_heads(ctx_multiheads)
 
-    # Project back to the model size.
+    # 投影回模型所需的hidden_size，本模型中out的维度与hidden_size相同
     proj_out = layers.fc(input=out,
                          size=hidden_size,
                          num_flatten_dims=2,
@@ -316,11 +313,7 @@ def multi_head_attention(queries,
                          bias_attr=name + '_output_fc.b_0')
     return proj_out
 
-"""
-def pre_process_layer(out, process_cmd, dropout_rate=0.,
-                           name=''):
-    pre_post_process_layer(None, out, process_cmd, dropout_rate, name)
-"""
-pre_process_layer = partial(pre_post_process_layer, None)
 
+# 定义用于预处理和后处理的层
+pre_process_layer = partial(pre_post_process_layer, None)
 post_process_layer = pre_post_process_layer

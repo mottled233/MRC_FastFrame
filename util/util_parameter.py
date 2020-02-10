@@ -5,7 +5,7 @@ from util.util_filepath import *
 
 class UtilParameter():
 
-    def __init__(self):
+    def __init__(self, file_name="config_default", file_format="json"):
 
         self.config_menu = {}
         self.config = {}
@@ -15,6 +15,8 @@ class UtilParameter():
         # config_menu: 变量目录
         # config: 变量值
         # part: 模块划分
+
+        self.read_config_default(file_name, file_format)
 
     def read_config_default(self, file_name="config_default", file_format="json"):
         # 读入变量定义文件，建立变量目录，并填充默认值

@@ -17,7 +17,7 @@ class UtilLogging():
         self.logger = logging.getLogger(self.log_name)
         self.file_handler = logging.FileHandler(get_fullurl("log", self.log_name, "txt"))
         self.stream_handler = logging.StreamHandler()
-        self.formatter = logging.Formatter('%(asctime)s - %(filename)s - %(funcName)s - %(levelname)s - %(message)s')
+        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         # file_handler: 文件输出
         # stream_handler: 数据流输出
         # formatter: 统一的日志输出格式
@@ -52,10 +52,16 @@ class UtilLogging():
         content.append('\n\n')
         save_file(content, "log", self.log_name, 'txt')
 
-    def log_input(self, level, message):
+    def log_input(self, level, message, pos=""):
         # 记录日志信息，会同步输出到命令行和日志文件中
         # level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示
+        # u_log.log_input(level, message, sys._getframe().f_code)
 
+        try:
+            message = pos.co_filename + '/' + pos.co_name + ' - ' + message
+        except AttributeError:
+            pass
+            # 未获取日志信息生成所在位置，不记录该信息
         if level == 1:
             self.logger.debug(message)
         elif level == 2:

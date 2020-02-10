@@ -25,6 +25,7 @@ def get_fullurl(file_type, file_name, file_format="json"):
         url += '.' + file_format
     return url
 
+
 def read_file(file_type, file_name, file_format="json"):
     # 对指定文件进行读取操作，自动调用路径生成
     url = get_fullurl(file_type, file_name, file_format)

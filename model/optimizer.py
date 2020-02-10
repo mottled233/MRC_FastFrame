@@ -3,6 +3,13 @@ import paddle.fluid as fluid
 
 
 def get_optimizer(learning_rate, args, regularization=None):
+    """
+    根据参数返回对应的优化器
+    :param learning_rate: 学习率，数字或变量（vars）
+    :param args: 参数集合
+    :param regularization: 正则化设定
+    :return: 优化器
+    """
     OPTIMIZER = args["optimizer"]
     optimizers = {
         "sgd": get_sgd,

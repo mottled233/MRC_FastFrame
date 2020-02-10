@@ -1,17 +1,6 @@
-#   Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Model for classifier."""
+"""
+bert分类model实现，对接训练模块和预测模块
+"""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -22,20 +11,29 @@ import paddle.fluid as fluid
 from model.bert import BertModel
 
 
+# 搭建分类模型
+# 被训练模块和预测模块直接调用
+# 返回相关的计算结果和对应的dataloader对象
 def create_model(args,
                  is_prediction=False):
 
+    # 输入定义
     src_ids = fluid.data(name='src_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     pos_ids = fluid.data(name='pos_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     sent_ids = fluid.data(name='sent_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     input_mask = fluid.data(name='input_mask', dtype='float32', shape=[-1, args['max_seq_length'], 1])
     labels = fluid.data(name='labels', dtype='int64', shape=[-1, 1])
+    # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
     if is_prediction:
         feed_list = [src_ids, pos_ids, sent_ids, input_mask]
     else:
         feed_list = [src_ids, pos_ids, sent_ids, input_mask, labels]
     reader = fluid.io.DataLoader.from_generator(feed_list=feed_list, capacity=64, iterable=True)
 
+    # 模型部分
+    # 由bert后接一层全连接完成预测任务
+
+    # bert部分
     bert = BertModel(
         src_ids=src_ids,
         position_ids=pos_ids,
@@ -44,6 +42,7 @@ def create_model(args,
         config=args,
         use_fp16=False)
 
+    # 取[CLS]的输出经全连接进行预测
     cls_feats = bert.get_pooled_output()
     cls_feats = fluid.layers.dropout(
         x=cls_feats,
@@ -58,21 +57,22 @@ def create_model(args,
         bias_attr=fluid.ParamAttr(
             name="cls_out_b", initializer=fluid.initializer.Constant(0.)))
 
+    # 根据任务返回不同的结果
+    # 预测任务仅返回dataloader和预测出的每个label对应的概率
     if is_prediction:
         probs = fluid.layers.softmax(logits)
-        #feed_targets_name = [
-        #    src_ids.name, pos_ids.name, sent_ids.name, input_mask.name
-        #]
         return reader, probs
 
+    # 训练任务则计算loss
     ce_loss, probs = fluid.layers.softmax_with_cross_entropy(
         logits=logits, label=labels, return_softmax=True)
     loss = fluid.layers.mean(x=ce_loss)
 
-#    if args.use_fp16 and args.loss_scaling > 1.0:
-#        loss *= args.loss_scaling
+    if args.use_fp16 and args.loss_scaling > 1.0:
+        loss *= args.loss_scaling
 
     num_seqs = fluid.layers.create_tensor(dtype='int64')
     accuracy = fluid.layers.accuracy(input=probs, label=labels, total=num_seqs)
 
-    return reader, loss, probs, accuracy, num_seqs
+    # 返回dataloader，loss，预测结果，和准确度
+    return reader, loss, probs, accuracy

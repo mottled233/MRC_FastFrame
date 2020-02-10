@@ -1,4 +1,3 @@
-import os, sys
 import paddle
 import paddle.fluid as fluid
 import numpy as np
@@ -10,7 +9,7 @@ from util.util_filepath import *
 from util.util_parameter import UtilParameter as UParam
 from util.util_logging import UtilLogging as ULog
 
-ground_truth = np.random.random(size=(1, 4)).astype('int64')
+ground_truth = (np.arange(2, 6).reshape(1, 4)/4)
 
 def fake_sample_generator():
     for _ in range(1000):
@@ -20,30 +19,33 @@ def fake_sample_generator():
 
 
 if __name__ == "__main__":
+    logger = ULog()
+    logger.log_init()
     args = {
         "max_epoch": 100,
+        "snapshot_frequency": 10,
         "early_stopping": True,
         "warm_up": False,
-        "continue_train": False,
-        "model_path": "",
+        "continue_train": True,
+        "load_model_path": "/gs/home/lianghx/lhx/File_Directory/models/2020-02-09_15-49-37",
         "use_parallel": True,
         "use_gpu": False,
         "num_of_device": 2,
         "batch_size": 32,
-        "base_learning_rate": 0.001,
-        "learning_rate_strategy": "linear_warm_up_and_decay",
+        "base_learning_rate": 0.01,
+        "learning_rate_strategy": "fixed",
         "start_learning_rate": 1e-04,
-        "warm_up_step": 200,
+        "warm_up_step": 50,
         "end_learning_rate": 1e-04,
-        "decay_step": 500,
-        "optimizer": "adagrad",
+        "decay_step": 1000,
+        "optimizer": "sgd",
         "adagrad_epsilon": 1e-06,
         "adagrad_accumulator_value": 0,
         "early_stopping_threshold": 0.03,
         "early_stopping_times": 5
     }
     reader = fluid.io.batch(fake_sample_generator, batch_size=args["batch_size"])
-    train_engine = TrainEngine(reader, reader, args)
+    train_engine = TrainEngine(reader, reader, args, logger)
     t1 = time.time()
     train_engine.train()
     t2 = time.time()

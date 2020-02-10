@@ -2,16 +2,18 @@ import paddle
 import paddle.fluid as fluid
 import os
 import numpy as np
-from util.model_utils import load_model_params,load_model
-#from model.classifier import create_model
+from util.model_utils import load_model_params, load_model
+import json as js
+# from model.classifier import create_model
 import time
+
 
 class PredictEngine(object):
 
     def __init__(self, test_data_reader, args):
-        '''
+        """
         创建预测过程
-        '''
+        """
         self.args = args
         self.predict_prog = fluid.Program()
         self.predict_startup = fluid.Program()
@@ -21,6 +23,7 @@ class PredictEngine(object):
         test_data_loader.set_sample_list_generator(test_data_reader, places=self.get_data_run_places(self.args))
         self.test_data_loader = test_data_loader
         self.probs = probs
+        self.results = []
 
     def create_model(self, args, is_prediction):
         x = fluid.data(name="x", dtype='float32', shape=[None,4])
@@ -48,10 +51,28 @@ class PredictEngine(object):
                 continue
             result = predict_exe.run(feed=data, fetch_list=[self.probs.name])
             results.append(result)
+            self.results = results
 
         print("-------------- prediction results --------------")
         for index, result in enumerate(results):
             print(str(index) + '\t{}'.format(result))
+
+    def write_to_json(self, predict_file, test_examples):
+        answers = []
+        for (i, probs) in enumerate(self.results):
+            assert type(probs) == list
+            max_index = probs.index(max(probs))
+            answer_list = ["Yes", "No", "Depends"]
+            answer = answer_list[max_index]
+            answers.append(answer)
+        with open(predict_file, "w", encoding= 'utf-8') as f:
+            for (i, example) in enumerate(test_examples):
+                yesno_answer = answers[i]
+                id = example.qas_id
+                js.dump({"id":id, "yesno_answer":yesno_answer}, f)
+                f.write('\n')
+
+
 
     def get_data_run_places(self, args):
         """
@@ -87,6 +108,7 @@ class PredictEngine(object):
         else:
             places = fluid.CPUPlace()
         return places
+
 
 if __name__ == '__main__':
     args = {

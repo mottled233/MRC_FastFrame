@@ -8,7 +8,10 @@ from util.util_parameter import *
 
 class UtilLogging():
 
-    def __init__(self, u_param):
+    level_num = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
+
+    def __init__(self, u_param, if_file=True, if_stream=True):
+        # 选择是否写入文件与输出到控制台
 
         present_time = datetime.datetime.now()
         self.log_name = datetime.datetime.strftime(present_time, '%Y-%m-%d %H-%M-%S')
@@ -23,13 +26,15 @@ class UtilLogging():
         # formatter: 统一的日志输出格式
 
         self.logger.propagate = False # 不向root传播，防止重复输出
-        self.logger.setLevel(level=logging.INFO)
+        # self.logger.setLevel(level = logging.INFO)
         self.file_handler.setLevel(logging.INFO)
         self.file_handler.setFormatter(self.formatter)
-        self.logger.addHandler(self.file_handler)
+        if if_file:
+            self.logger.addHandler(self.file_handler)
         self.stream_handler.setLevel(logging.INFO)
         self.stream_handler.setFormatter(self.formatter)
-        self.logger.addHandler(self.stream_handler)
+        if if_stream:
+            self.logger.addHandler(self.stream_handler)
 
         self.log_config(u_param)
 
@@ -73,3 +78,12 @@ class UtilLogging():
         elif level == 5:
             self.logger.critical(message)
 
+    def set_file_level(self, flevel):
+        # 设置文件中日志的筛选等级
+
+        self.file_handler.setLevel(UtilLogging.level_num[flevel])
+
+    def set_stream_level(self, slevel):
+        # 设置控制台中日志的筛选等级
+
+        self.stream_handler.setLevel(UtilLogging.level_num[slevel])

@@ -5,37 +5,36 @@ from util.util_filepath import *
 
 class UtilParameter:
 
+    part = ["global", "build", "train", "predict"]
+    # part: 模块划分
+
     def __init__(self, file_name="config_default", file_format="json"):
 
         self.config_menu = {}
         self.config = {}
-        self.part = ["global", "build", "train", "predict"]
-        for part_name in self.part:
+        for part_name in UtilParameter.part:
             self.config[part_name] = {}
         # config_menu: 变量目录
         # config: 变量值
-        # part: 模块划分
 
         self.read_config_default(file_name, file_format)
 
-    def read_config_default(self, file_name="config_default", file_format="json"):
+    def read_config_default(self, file_name="config_default", file_format="json", file_type = "config"):
         # 读入变量定义文件，建立变量目录，并填充默认值
-        file_type = "config"
 
         self.config_menu = read_file(file_type, file_name, file_format)[0]
-        for part_name in self.part:
+        for part_name in UtilParameter.part:
             self.config[part_name] = {}
         for part_name in self.config_menu.keys():
             try:
                 for k in self.config_menu[part_name].keys():
                     self.config[part_name][k] = self.config_menu[part_name][k]["default"]
-            except KeyError:
-                return
+            except Exception:
+                raise KeyError("未知模块名") from Exception
                 # 出现未知模块名，返回错误信息
 
-    def read_config_file(self, file_name, file_format="json"):
+    def read_config_file(self, file_name, file_format="json", file_type = "config"):
         # 读入变量设置文件，管理新定义的变量，并读入其他设置值
-        file_type = "config"
 
         config_new = read_file(file_type, file_name, file_format)[0]
         for part_name in config_new.keys():
@@ -46,8 +45,8 @@ class UtilParameter:
                         self.config[part_name][k] = self.config_menu[part_name][k]["default"]
                     else:
                         self.config[part_name][k] = config_new[part_name][k]
-            except KeyError:
-                return
+            except Exception:
+                raise KeyError("未知模块名") from Exception
                 # 出现未知模块名，返回错误信息
 
     def set_config(self, argv):
@@ -55,17 +54,18 @@ class UtilParameter:
         # set_config(sys.argv[1:])
 
         config_list = []
-        for part_name in self.part:
+        for part_name in UtilParameter.part:
             for k in self.config_menu[part_name].keys():
                 config_list.append(k + '=')
         try:
             options, args = getopt.getopt(argv, "", config_list)
-        except getopt.GetoptError:
-            sys.exit()
+        except Exception:
+            raise getopt.GetoptError("argv格式错误") from Exception
+            # sys.exit()
             # argv格式错误，返回错误信息
 
         for option, value in options:
-            for part_name in self.part:
+            for part_name in UtilParameter.part:
                 for k in self.config_menu[part_name].keys():
                     if option == '--' + k:
                         self.config[part_name][k] = value
@@ -75,7 +75,7 @@ class UtilParameter:
 
         try:
             return self.config["global"], self.config[part_name]
-        except KeyError:
-            return {}, {}
+        except Exception:
+            raise KeyError("未知模块名") from Exception
             # 出现未知模块名，返回错误信息
 

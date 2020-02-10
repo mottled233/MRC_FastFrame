@@ -2,13 +2,14 @@ import os,sys
 import datetime
 import json
 import logging
+from colorama import Fore, Style
 from util.util_filepath import *
 from util.util_parameter import *
 
 
 class UtilLogging():
 
-    level_num = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
+    lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
 
     def __init__(self, u_param, if_file=True, if_stream=True):
         # 选择是否写入文件与输出到控制台
@@ -26,12 +27,12 @@ class UtilLogging():
         # formatter: 统一的日志输出格式
 
         self.logger.propagate = False # 不向root传播，防止重复输出
-        # self.logger.setLevel(level = logging.INFO)
-        self.file_handler.setLevel(logging.INFO)
+        self.logger.setLevel(level = logging.DEBUG) # 设置整体最低层级为debug
+        self.set_file_level(2)
         self.file_handler.setFormatter(self.formatter)
         if if_file:
             self.logger.addHandler(self.file_handler)
-        self.stream_handler.setLevel(logging.INFO)
+        self.set_stream_level(2)
         self.stream_handler.setFormatter(self.formatter)
         if if_stream:
             self.logger.addHandler(self.stream_handler)
@@ -59,31 +60,32 @@ class UtilLogging():
 
     def log_input(self, level, message, pos=""):
         # 记录日志信息，会同步输出到命令行和日志文件中
-        # level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示
+        # level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示，颜色分别为白、绿、黄、红、红
         # u_log.log_input(level, message, sys._getframe().f_code)
 
+        message = str(message)
         try:
             message = pos.co_filename + '/' + pos.co_name + ' - ' + message
         except AttributeError:
             pass
             # 未获取日志信息生成所在位置，不记录该信息
         if level == 1:
-            self.logger.debug(message)
+            self.logger.debug(message) # Fore.WHITE + message +Style.RESET_ALL
         elif level == 2:
-            self.logger.info(message)
+            self.logger.info(message) # Fore.GREEN + message +Style.RESET_ALL
         elif level == 3:
-            self.logger.warning(message)
+            self.logger.warning(message) # Fore.YELLOW + message +Style.RESET_ALL
         elif level == 4:
-            self.logger.error(message)
+            self.logger.error(message) # Fore.RED + message +Style.RESET_ALL
         elif level == 5:
-            self.logger.critical(message)
+            self.logger.critical(message) # Fore.RED + message +Style.RESET_ALL
 
     def set_file_level(self, flevel):
         # 设置文件中日志的筛选等级
 
-        self.file_handler.setLevel(UtilLogging.level_num[flevel])
+        self.file_handler.setLevel(UtilLogging.lev[flevel])
 
     def set_stream_level(self, slevel):
         # 设置控制台中日志的筛选等级
 
-        self.stream_handler.setLevel(UtilLogging.level_num[slevel])
+        self.stream_handler.setLevel(UtilLogging.lev[slevel])

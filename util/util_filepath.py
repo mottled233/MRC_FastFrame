@@ -7,8 +7,10 @@ import pickle
 root = os.path.abspath("")
 folder = {"data": "dataset", "example": "examples", "datap": "dataset_processed",
                    "model": "models", "log": "logging", "config": "config"}
+suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": ""}
 # root: 根目录
 # folder: 文件类型对应保存文件名
+# suffix: 文件格式对应的后缀
 
 def get_fullurl(file_type, file_name, file_format="json"):
     # file_type文件类型，file_name文件名，file_format文件格式（默认json）
@@ -17,12 +19,15 @@ def get_fullurl(file_type, file_name, file_format="json"):
     url = root + "/File_Directory"
     try:
         url += '/' + folder[file_type]
-    except KeyError:
-        return ""
-        # 未知文件种类，返回错误信息
+    except Exception:
+        raise KeyError("未知文件种类") from Exception
+        # 出现未知文件种类，返回错误信息
     url += '/' + file_name
-    if file_format != "pickle":
-        url += '.' + file_format
+    try:
+        url += suffix[file_format]
+    except Exception:
+        raise KeyError("不可处理的文件格式") from Exception
+        # 出现不可处理的文件格式，返回错误信息
     return url
 
 
@@ -40,6 +45,8 @@ def read_file(file_type, file_name, file_format="json"):
                     item = line.replace('\n', '').split(',')
                 elif file_format == "tsv":
                     item = line.replace('\n', '').split('\t')
+                elif file_format == "txt":
+                    item = line
                 # print(item)
                 content.append(item)
     else:

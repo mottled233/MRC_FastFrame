@@ -2,6 +2,7 @@ import paddle
 import paddle.fluid as fluid
 import numpy as np
 import time
+from preprocess.preprocess import PreProcess as PrePro
 from engine.train import TrainEngine as TrainEngine
 from data.Dataset import Dataset
 

@@ -2,11 +2,12 @@ import paddle
 import paddle.fluid as fluid
 import numpy as np
 import os
+import util.model_utils as model_utils
+
 
 import model.optimizer
 import model.lr_stategy as lr_strategy
 from model.network_test import network as network
-
 
 
 class TrainEngine(object):
@@ -17,20 +18,37 @@ class TrainEngine(object):
         valid_data_reader： batch化的验证数据集生成器，batch大小必须大于设备数
         args:
     一个所需参数示例：
-        args = {
-        "max_epoch": 20,
-        "early_stopping": False,
+    args = {
+        "max_epoch": 100,
+        "snapshot_frequency": 10,
+        "early_stopping": True,
         "warm_up": False,
         "continue_train": False,
-        "model_path": "",
+        "load_model_path": "",
         "use_parallel": True,
         "use_gpu": False,
-        "num_of_device": 2
+        "num_of_device": 2,
+        "batch_size": 32,
+        "base_learning_rate": 0.01,
+        "learning_rate_strategy": "fixed",
+        "start_learning_rate": 1e-04,
+        "warm_up_step": 50,
+        "end_learning_rate": 1e-04,
+        "decay_step": 1000,
+        "optimizer": "sgd"
     }
 
     """
-    def __init__(self, train_data_reader, valid_data_reader, args):
+    def __init__(self, train_data_reader, valid_data_reader, args, logger):
+        """
+        对训练过程进行初始化
+        :param train_data_reader:
+        :param valid_data_reader:
+        :param args:
+        :param logger:
+        """
         self.args = args
+        self.logger = logger
 
         '''
         创建训练过程
@@ -74,17 +92,20 @@ class TrainEngine(object):
         过程并行化
         '''
         USE_PARALLEL = args["use_parallel"]
+
+        # 备份原program，因为compiled_program没有保存
+        self.origin_train_prog = self.train_main_prog
         if USE_PARALLEL:
             print("use_parallel")
             # 设置并行训练的策略
             # 这里可以用参数配置，不过要改的东西很多，所以先写死吧
-            buildStrategy = fluid.BuildStrategy()
-            buildStrategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
+            build_strategy = fluid.BuildStrategy()
+            build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
             # 构建并行过程
             self.train_main_prog = fluid.CompiledProgram(self.train_main_prog)\
                                     .with_data_parallel(loss_name=self.train_loss.name,
                                                         places=self.get_data_run_places(self.args),
-                                                        build_strategy=buildStrategy)
+                                                        build_strategy=build_strategy)
             self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog)\
                                     .with_data_parallel(share_vars_from=self.train_main_prog,
                                                         places=self.get_data_run_places(self.args),
@@ -96,33 +117,45 @@ class TrainEngine(object):
         :return: 无
         """
         MAX_EPOCH = self.args["max_epoch"]
+        SNAPSHOT_FREQUENCY = self.args["snapshot_frequency"]
+
         EARLY_STOPPING = self.args["early_stopping"]
         if EARLY_STOPPING:
             THRESHOLD = self.args["early_stopping_threshold"]
             STANDSTILL_STEP = self.args["early_stopping_times"]
-        WARM_UP = self.args["warm_up"]
+
         CONTINUE = self.args["continue_train"]
         if CONTINUE:
-            MODEL_PATH = self.args["model_path"]
-            # TODO 读取模型现有的参数并为继续训练进行相应处理
+            MODEL_PATH = self.args["load_model_path"]
 
         # 定义执行器
         executor = fluid.Executor(self.get_executor_run_places(self.args))
         # 执行初始化
         executor.run(self.train_startup_prog)
-        # TODO 应该有是否读入已有模型
+
+        # 读取模型现有的参数并为继续训练进行相应处理
+        if CONTINUE:
+            model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
+            print("Model file in {} has been loaded".format(MODEL_PATH))
         # 执行MAX_EPOCH次迭代
         for epoch_id in range(MAX_EPOCH):
             # 一个epoch的训练过程，一个迭代
             self.__run_train_iterable(executor)
             # 进行一次验证集上的验证
             valid_loss = self.valid(executor)
+            # 进行保存
+            if epoch_id % SNAPSHOT_FREQUENCY == 0:
+                file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
+                print("Snapshot of training process has been saved as folder {}".format(file_path))
             # 应用早停策略
             if EARLY_STOPPING:
                 need_stop = self.early_stopping_strategy(valid_loss, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
                 if need_stop:
+                    print("Performance improvement stalled, ending the training process")
                     break
-        # TODO 保存现有模型
+        # 保存现有模型
+        file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
+        print("Training process completed. model saved in {}".format(file_path))
 
     def __run_train_iterable(self, executor):
         """
@@ -138,7 +171,7 @@ class TrainEngine(object):
                 continue
             loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
             total_loss += loss_value[0]
-            total_data += batch_size
+            total_data += 1
         mean_loss = total_loss / total_data
         print('train mean loss is {}'.format(mean_loss))
 
@@ -156,12 +189,13 @@ class TrainEngine(object):
                 continue
             loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss])
             total_loss += loss_value[0]
-            total_data += batch_size
+            total_data += 1
         mean_loss = total_loss / total_data
         print('train mean loss is {}'.format(mean_loss))
         return mean_loss
 
-    def get_data_run_places(self, args):
+    @staticmethod
+    def get_data_run_places(args):
         """
         根据获取数据层（dataloader）的运行位置
         :return: 运行位置
@@ -183,8 +217,8 @@ class TrainEngine(object):
                 places = fluid.cpu_places(1)
         return places
 
-
-    def get_executor_run_places(self, args):
+    @staticmethod
+    def get_executor_run_places(args):
         """
         根据获取执行引擎（Executor）的运行位置
         :return: 运行位置

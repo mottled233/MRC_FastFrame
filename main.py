@@ -20,16 +20,16 @@ def fake_sample_generator():
 
 if __name__ == "__main__":
     logger = ULog()
-    logger.log_init()
     args = {
         "max_epoch": 100,
         "snapshot_frequency": 10,
         "early_stopping": True,
         "warm_up": False,
         "continue_train": True,
-        "load_model_path": "/gs/home/lianghx/lhx/File_Directory/models/2020-02-09_15-49-37",
+        "pretrained_model_path": "",
+        "load_model_path": "/gs/home/lianghx/lhx/MRC/File_Directory/models/2020-02-09_15-50-34",
         "use_parallel": True,
-        "use_gpu": False,
+        "use_gpu": True,
         "num_of_device": 2,
         "batch_size": 32,
         "base_learning_rate": 0.01,
@@ -50,4 +50,3 @@ if __name__ == "__main__":
     train_engine.train()
     t2 = time.time()
     print(t2-t1)
-

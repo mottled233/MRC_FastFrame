@@ -6,9 +6,9 @@ from util.util_filepath import *
 from util.util_parameter import *
 
 
-class UtilLogging():
+class UtilLogging:
 
-    def __init__(self, u_param):
+    def __init__(self):
 
         present_time = datetime.datetime.now()
         self.log_name = datetime.datetime.strftime(present_time, '%Y-%m-%d %H-%M-%S')
@@ -31,26 +31,26 @@ class UtilLogging():
         self.stream_handler.setFormatter(self.formatter)
         self.logger.addHandler(self.stream_handler)
 
-        self.log_config(u_param)
-
-    def log_config(self, u_param):
-        # 初始化日志文件，并写入参数表
-
-        content = []
-        for part_name in u_param.part:
-            content.append(part_name)
-            for k in u_param.config[part_name]:
-                content.append("|---" + k + ':')
-                content.append("    |---type: " + str(u_param.config_menu[part_name][k]["type"]))
-                content.append("    |---description: " + str(u_param.config_menu[part_name][k]["description"]))
-                content.append("    |---value: " + str(u_param.config[part_name][k]))
-            content.append('')
-        # 输出全部参数信息
-        jsonstr = json.dumps(u_param.config)
-        content.append(jsonstr)
-        # 输出可进行使用的json格式参数配置
-        content.append('\n\n')
-        save_file(content, "log", self.log_name, 'txt')
+    #     self.log_config(u_param)
+    #
+    # def log_config(self, u_param):
+    #     # 初始化日志文件，并写入参数表
+    #
+    #     content = []
+    #     for part_name in u_param.part:
+    #         content.append(part_name)
+    #         for k in u_param.config[part_name]:
+    #             content.append("|---" + k + ':')
+    #             content.append("    |---type: " + str(u_param.config_menu[part_name][k]["type"]))
+    #             content.append("    |---description: " + str(u_param.config_menu[part_name][k]["description"]))
+    #             content.append("    |---value: " + str(u_param.config[part_name][k]))
+    #         content.append('')
+    #     # 输出全部参数信息
+    #     jsonstr = json.dumps(u_param.config)
+    #     content.append(jsonstr)
+    #     # 输出可进行使用的json格式参数配置
+    #     content.append('\n\n')
+    #     save_file(content, "log", self.log_name, 'txt')
 
     def log_input(self, level, message):
         # 记录日志信息，会同步输出到命令行和日志文件中
@@ -66,4 +66,20 @@ class UtilLogging():
             self.logger.error(message)
         elif level == 5:
             self.logger.critical(message)
+
+    def debug(self, message):
+        self.logger.debug(message)
+
+    def info(self, message):
+        self.logger.info(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)
+
 

@@ -17,6 +17,7 @@ def save_train_snapshot(executor, program, file_path=""):
 
 
 def load_train_snapshot(executor, program, file_path):
+    assert os.path.exists(file_path), "[%s] cann't be found." % file_path
     io.load_persistables(executor=executor, dirname=file_path, main_program=program)
 
 
@@ -32,6 +33,7 @@ def save_model_as_whole(program, file_path=""):
 def load_model_params(exe, params_path, program):
     assert os.path.exists(params_path), "[%s] cann't be found." % params_path
     io.load_params(exe, params_path, main_program=program)
+
 
 def load_model(model_path, exe):
     assert os.path.exists(model_path), "[%s] cann't be found." % model_path

@@ -1,10 +1,9 @@
 import paddle.fluid as fluid
 import os
 import numpy as np
-from util.model_utils import load_model_params, load_model
+from util.model_utils import load_model
+from engine.train import TrainEngine
 import json as js
-import time
-
 
 class PredictEngine(object):
     def __init__(self, args):
@@ -29,15 +28,18 @@ class PredictEngine(object):
             buildStrategy = fluid.BuildStrategy()
             buildStrategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
             self.predict_program = fluid.CompiledProgram(self.predict_program).\
-                with_data_parallel(places=self.get_data_run_places(self.args)
+                with_data_parallel(places=TrainEngine.get_data_run_places(self.args)
                                    , build_strategy=buildStrategy)
 
     def predict(self, data_generator):
-        for data in data_generator:
-            prob = self.exe.run(self.predict_program,
-                            feed=dict(zip(self.feed_target_names, [data])),
-                            fetch_list=self.fetch_targets)
-            self.probs_list.append(prob)
+        #对batch_size的处理还有一点问题
+        for data in data_generator():
+            for sample in data:
+                feed_data = dict(zip(self.feed_target_names, [sample]))
+                prob = self.exe.run(self.predict_program,
+                                feed=feed_data,
+                                fetch_list=self.fetch_targets)
+                self.probs_list.append(prob)
         print(self.probs_list)
 
     #传入一个函数对概率矩阵进行后处理操作，如适当增大Depends小类的概率等
@@ -65,28 +67,6 @@ class PredictEngine(object):
                 js.dump({"id":id, "yesno_answer":yesno_answer}, f)
                 f.write('\n')
 
-    def get_data_run_places(self, args):
-        """
-        根据获取数据层（dataloader）的运行位置
-        :return: 运行位置
-        """
-        USE_PARALLEL = args["use_parallel"]
-        USE_GPU = args["use_gpu"]
-        NUM_OF_DEVICE = args["num_of_device"]
-
-        if USE_PARALLEL and NUM_OF_DEVICE > 1:
-            if USE_GPU:
-                os.environ['CUDA_VISIBLE_DEVICES'] = str(NUM_OF_DEVICE)
-                places = fluid.cuda_places()
-            else:
-                places = fluid.cpu_places(NUM_OF_DEVICE)
-        else:
-            if USE_GPU:
-                places = fluid.cuda_places(0)
-            else:
-                places = fluid.cpu_places(1)
-        return places
-
     def get_executor_run_places(self, args):
         USE_GPU = args["use_gpu"]
         if USE_GPU:
@@ -97,12 +77,18 @@ class PredictEngine(object):
 
 
 if __name__ == '__main__':
-    args = {"use_parallel": False}
+    args = {
+        "use_parallel": False,
+        "use_gpu": False,
+        "num_of_device": 1,
+        "batch_size": 32
+    }
     predict_engine = PredictEngine(args)
     predict_engine.init_model(os.getcwd() + "/infer_model")
     def fake_sample_generator():
         for _ in range(50):
             sample_x = np.array(np.random.random((1, 28, 28)), dtype=np.float32)
             yield sample_x
-    predict_engine.predict(fake_sample_generator())
+    generator = fluid.io.batch(fake_sample_generator, batch_size=args["batch_size"])
+    predict_engine.predict(generator)
 

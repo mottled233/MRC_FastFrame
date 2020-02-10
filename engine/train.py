@@ -53,32 +53,41 @@ class TrainEngine(object):
         '''
         创建训练过程
         '''
+        self.logger.info("Initializing training process...")
         self.train_main_prog = fluid.Program()
         self.train_startup_prog = fluid.Program()
         with fluid.program_guard(self.train_main_prog, self.train_startup_prog):
             # 使用 fluid.unique_name.guard() 实现与test program的参数共享
             with fluid.unique_name.guard():
+                self.logger.info("Initializing training neural network...")
                 train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                self.logger.info("Training neural network initialized.")
                 # 获取训练策略
+                self.logger.info("Setting training strategy...")
                 learning_rate = lr_strategy.get_strategy(self.args)
                 optimizer = model.optimizer.get_optimizer(learning_rate, self.args, regularization=None)
                 optimizer.minimize(train_loss)
+                self.logger.info("Training strategy has been set.")
 
         # 为训练过程设置数据集
         train_data_loader.set_sample_list_generator(train_data_reader, places=self.get_data_run_places(self.args))
         self.train_data_loader = train_data_loader
         self.optimizer = optimizer
         self.train_loss = train_loss
+        self.logger.info("Training process initialized.")
 
         '''
         创建验证过程
         '''
+        self.logger.info("Initializing validation process...")
         self.valid_main_prog = fluid.Program()
         self.valid_startup_prog = fluid.Program()
         with fluid.program_guard(self.valid_main_prog, self.valid_startup_prog):
             # 使用 fluid.unique_name.guard() 实现与train program的参数共享
             with fluid.unique_name.guard():
+                self.logger.info("Initializing validation neural network...")
                 valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
+                self.logger.info("Validation neural network initialized.")
 
         valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))
 
@@ -87,7 +96,7 @@ class TrainEngine(object):
         # 对训练状态的记录
         self.pre_epoch_valid_loss = float("inf")
         self.standstill_count = 0
-
+        self.logger.info("Validation process initialized.")
         '''
         过程并行化
         '''
@@ -96,20 +105,21 @@ class TrainEngine(object):
         # 备份原program，因为compiled_program没有保存
         self.origin_train_prog = self.train_main_prog
         if USE_PARALLEL:
-            print("use_parallel")
+            self.logger.info("Initialize parallel processes...")
             # 设置并行训练的策略
             # 这里可以用参数配置，不过要改的东西很多，所以先写死吧
             build_strategy = fluid.BuildStrategy()
-            build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
+            build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.AllReduce
             # 构建并行过程
-            self.train_main_prog = fluid.CompiledProgram(self.train_main_prog)\
-                                    .with_data_parallel(loss_name=self.train_loss.name,
+            self.train_main_prog = fluid.CompiledProgram(self.train_main_prog).with_data_parallel(
+                                                        loss_name=self.train_loss.name,
                                                         places=self.get_data_run_places(self.args),
                                                         build_strategy=build_strategy)
-            self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog)\
-                                    .with_data_parallel(share_vars_from=self.train_main_prog,
+            self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog).with_data_parallel(
+                                                        share_vars_from=self.train_main_prog,
                                                         places=self.get_data_run_places(self.args),
-                                                        build_strategy=buildStrategy)
+                                                        build_strategy=build_strategy)
+            self.logger.info("Parallel processes initialized.")
 
     def train(self):
         """
@@ -128,6 +138,8 @@ class TrainEngine(object):
         if CONTINUE:
             MODEL_PATH = self.args["load_model_path"]
 
+        PRETRAIN_MODEL = self.args["pretrained_model_path"]
+
         # 定义执行器
         executor = fluid.Executor(self.get_executor_run_places(self.args))
         # 执行初始化
@@ -136,26 +148,33 @@ class TrainEngine(object):
         # 读取模型现有的参数并为继续训练进行相应处理
         if CONTINUE:
             model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
-            print("Model file in {} has been loaded".format(MODEL_PATH))
+            self.logger.info("Model file in {} has been loaded".format(MODEL_PATH))
+        elif PRETRAIN_MODEL != "":
+            # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
+            model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=PRETRAIN_MODEL)
+            self.logger.info("Pre-trained model file in {} has been loaded".format(MODEL_PATH))
+
         # 执行MAX_EPOCH次迭代
         for epoch_id in range(MAX_EPOCH):
             # 一个epoch的训练过程，一个迭代
-            self.__run_train_iterable(executor)
+            loss = self.__run_train_iterable(executor)
+            self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
             # 进行一次验证集上的验证
             valid_loss = self.valid(executor)
+            self.logger.info(' Epoch {epoch} Validated, valid mean loss is {loss}'.format(epoch=epoch_id, loss=valid_loss))
             # 进行保存
             if epoch_id % SNAPSHOT_FREQUENCY == 0:
                 file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
-                print("Snapshot of training process has been saved as folder {}".format(file_path))
+                self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
             # 应用早停策略
             if EARLY_STOPPING:
                 need_stop = self.early_stopping_strategy(valid_loss, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
                 if need_stop:
-                    print("Performance improvement stalled, ending the training process")
+                    self.logger.info("Performance improvement stalled, ending the training process")
                     break
         # 保存现有模型
         file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
-        print("Training process completed. model saved in {}".format(file_path))
+        self.logger.info("Training process completed. model saved in {}".format(file_path))
 
     def __run_train_iterable(self, executor):
         """
@@ -173,7 +192,7 @@ class TrainEngine(object):
             total_loss += loss_value[0]
             total_data += 1
         mean_loss = total_loss / total_data
-        print('train mean loss is {}'.format(mean_loss))
+        return mean_loss
 
     def valid(self, exe):
         """
@@ -242,7 +261,6 @@ class TrainEngine(object):
         current_valid_loss = np.sum(current_valid_loss)
         promote = self.pre_epoch_valid_loss - current_valid_loss
         promote_rate = promote / np.abs(self.pre_epoch_valid_loss)
-        print(promote_rate)
         if promote_rate < threshold:
             self.standstill_count += 1
             if self.standstill_count > standstill_step:

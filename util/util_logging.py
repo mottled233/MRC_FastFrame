@@ -7,7 +7,7 @@ from util.util_filepath import *
 from util.util_parameter import *
 
 
-class UtilLogging():
+class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
 
@@ -79,6 +79,21 @@ class UtilLogging():
             self.logger.error(message) # Fore.RED + message +Style.RESET_ALL
         elif level == 5:
             self.logger.critical(message) # Fore.RED + message +Style.RESET_ALL
+
+    def debug(self, message):
+        self.logger.debug(message)
+
+    def info(self, message):
+        self.logger.info(message)
+
+    def warning(self, message):
+        self.logger.warning(message)
+
+    def error(self, message):
+        self.logger.error(message)
+
+    def critical(self, message):
+        self.logger.critical(message)
 
     def set_file_level(self, flevel):
         # 设置文件中日志的筛选等级

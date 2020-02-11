@@ -1,14 +1,14 @@
 {"dataset":{
     "dataset_path":{"type":"string", "description":"数据集路径","default":"File_Directory/dataset"},
-    "examples_path":{"type":"string", "description":"examples缓存路径","default":"File_Directory/examples"}
+    "examples_path":{"type":"string", "description":"examples缓存路径","default":"File_Directory/examples"},
+    "vocab_size":{"type":"int","description":"词表的大小","default":0},
+    "max_seq_length":{"type":"int","description":"最长序列长度","default":512}
 },
 "build":{
     "num_labels":{"type":"int","description":"分类的类别数","default":3},
     "hidden_size":{"type":"int","description":"embedding后向量的维数","default":384},
     "num_hidden_layers":{"type":"int","description":"内部encoder的层数","default":12},
     "num_attention_heads":{"type":"int","description":"attention_heads的数量","default":12},
-    "vocab_size":{"type":"int","description":"词表的大小","default":0},
-    "max_seq_length":{"type":"int","description":"最长序列长度","default":512},
     "hidden_act":{"type":"string","description":"激活函数的名称","default":"relu"},
     "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0},
     "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0},

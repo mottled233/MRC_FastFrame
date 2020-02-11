@@ -1,16 +1,17 @@
-import os,sys
+import os
 import json
 import csv
 import pickle
 
 
 root = os.path.abspath("")
-folder = {"data": "dataset", "example": "examples", "datap": "dataset_processed",
-                   "model": "models", "log": "logging", "config": "config", "vocab": "vocab"}
+folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed",
+          "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}
 suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": ""}
 # root: 根目录
 # folder: 文件类型对应保存文件名
 # suffix: 文件格式对应的后缀
+
 
 def get_fullurl(file_type, file_name, file_format="json"):
     """
@@ -22,11 +23,11 @@ def get_fullurl(file_type, file_name, file_format="json"):
 
     url = root + "/File_Directory"
     try:
-        url += '/' + folder[file_type]
+        url += folder[file_type]
     except Exception:
         raise KeyError("未知文件种类") from Exception
         # 出现未知文件种类，返回错误信息
-    if os.path.exists(url) == False:
+    if not os.path.exists(url):
         os.mkdir(url)
     url += '/' + file_name
     try:
@@ -63,6 +64,7 @@ def read_file(file_type, file_name, file_format="json"):
             content = pickle.load(f)
 
     return content
+
 
 def save_file(content, file_type, file_name, file_format="json"):
     """

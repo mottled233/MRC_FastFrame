@@ -19,7 +19,7 @@ class UtilParameter:
 
         self.read_config_default(file_name, file_format)
 
-    def read_config_default(self, file_name="config_default", file_format="json", file_type = "config"):
+    def read_config_default(self, file_name="config_default", file_format="json", file_type="config"):
         """
         读入变量定义文件，建立变量目录，并填充默认值
         """
@@ -35,7 +35,7 @@ class UtilParameter:
                 raise KeyError("未知模块名") from Exception
                 # 出现未知模块名，返回错误信息
 
-    def read_config_file(self, file_name, file_format="json", file_type = "config"):
+    def read_config_file(self, file_name, file_format="json", file_type="config"):
         """
         读入变量设置文件，管理新定义的变量，并读入其他设置值
         """

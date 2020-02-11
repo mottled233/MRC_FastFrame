@@ -1,9 +1,6 @@
-import os,sys
 import datetime
-import json
 import logging
-from colorama import Fore, Style
-from util.util_filepath import *
+# from colorama import Fore, Style
 from util.util_parameter import *
 
 
@@ -31,8 +28,8 @@ class UtilLogging:
         # stream_handler: 数据流输出
         # formatter: 统一的日志输出格式
 
-        self.logger.propagate = False # 不向root传播，防止重复输出
-        self.logger.setLevel(level = logging.DEBUG) # 设置整体最低层级为debug
+        self.logger.propagate = False  # 不向root传播，防止重复输出
+        self.logger.setLevel(level=logging.DEBUG)  # 设置整体最低层级为debug
         self.set_file_level(2)
         self.file_handler.setFormatter(self.formatter)
         if is_file:

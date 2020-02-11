@@ -127,9 +127,9 @@ class Dataset:
         读取example_list的缓存
         :return:
         """
-        read_file("example", "train", "pickle")
-        read_file("example", "dev", "pickle")
-        read_file("example", "test", "pickle")
+        self.train_examples = read_file("example", "train", "pickle")
+        self.dev_examples = read_file("example", "dev", "pickle")
+        self.test_examples = read_file("example", "test", "pickle")
         return
 
 

@@ -1,4 +1,3 @@
-import os,sys
 import getopt
 from util.util_filepath import *
 
@@ -92,7 +91,6 @@ class UtilParameter:
                 except Exception:
                     raise KeyError("不存在该参数") from Exception
 
-
     def get_config(self, part_name):
         """
         获取全局变量与对应部分的函数值，局部变量拥有更高的优先级
@@ -103,4 +101,3 @@ class UtilParameter:
         except Exception:
             raise KeyError("未知模块名") from Exception
             # 出现未知模块名，返回错误信息
-

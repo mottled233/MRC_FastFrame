@@ -7,7 +7,7 @@ import pickle
 root = os.path.abspath("")
 folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed",
           "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}
-suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": ""}
+suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": "", "": ""}
 # root: 根目录
 # folder: 文件类型对应保存文件名
 # suffix: 文件格式对应的后缀

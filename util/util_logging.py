@@ -62,7 +62,7 @@ class UtilLogging:
         content.append('\n\n')
         save_file(content, "log", self.log_name, 'txt')
 
-    def log_input(self, level, message, pos=""):
+    def log_input(self, level, message, pos=None):
         """
         记录日志信息，会同步输出到命令行和日志文件中
         level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示，颜色分别为白、绿、黄、红、红

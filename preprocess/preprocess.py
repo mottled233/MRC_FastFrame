@@ -5,12 +5,12 @@ from preprocess.batching import *
 
 class Feature(object):
 
-    def __init__(self, qas_id, src_ids, pos_ids, sent_ids, input_mask, label):
+    def __init__(self, qas_id, src_id, pos_id, sent_id, input_mask, label):
 
         self.qas_id = qas_id
-        self.src_ids = src_ids
-        self.pos_ids = pos_ids
-        self.sent_ids = sent_ids
+        self.src_id = src_id
+        self.pos_id = pos_id
+        self.sent_id = sent_id
         self.input_mask = input_mask
         self.label = label
 
@@ -30,7 +30,6 @@ class PreProcess:
         # 使用指定的字典，构建tokenizer
 
         self.features = []
-
 
     def get_examples_from_file(self, file_name, file_format="pickle", file_type="example"):
         """
@@ -194,18 +193,21 @@ class PreProcess:
                     yield feature
 
         def generate_batch_data(batch_data):
-            src_ids = [inst[0] for inst in batch_data]
-            pos_ids = [inst[1] for inst in batch_data]
-            sent_ids = [inst[2] for inst in batch_data]
-            input_mask = [inst[3] for inst in batch_data]
-            labels = [inst[4] for inst in batch_data]
-            return [src_ids, pos_ids, sent_ids, input_mask, labels]
+            qas_ids = [inst[0] for inst in batch_data]
+            src_ids = [inst[1] for inst in batch_data]
+            pos_ids = [inst[2] for inst in batch_data]
+            sent_ids = [inst[3] for inst in batch_data]
+            input_mask = [inst[4] for inst in batch_data]
+            labels = [inst[5] for inst in batch_data]
+            qas_ids = np.array(qas_ids).reshape([-1, 1])
+            labels = np.array(labels).reshape([-1, 1])
+            return [qas_ids, src_ids, pos_ids, sent_ids, input_mask, labels]
 
         def batch_generator():
             batch_data = []
             for feature in feature_generator():
                 batch_data.append([
-                    feature.src_ids, feature.pos_ids, feature.sent_ids, feature.input_mask, feature.label
+                    feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
                 ])
                 if len(batch_data) == batch_size:
                     batch_data = generate_batch_data(batch_data)

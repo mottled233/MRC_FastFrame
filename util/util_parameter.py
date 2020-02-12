@@ -4,7 +4,7 @@ from util.util_filepath import *
 
 class UtilParameter:
 
-    part = ["build", "train"]  # ["global", "build", "train", "predict"]
+    part = ["global", "dataset", "build", "train", "predict"]
     # part: 模块划分
 
     def __init__(self, file_name="config_default", file_format="json"):
@@ -12,6 +12,7 @@ class UtilParameter:
         self.config_menu = {}
         self.config = {}
         for part_name in UtilParameter.part:
+            self.config_menu[part_name] = {}
             self.config[part_name] = {}
         # config_menu: 变量目录
         # config: 变量值
@@ -60,6 +61,8 @@ class UtilParameter:
 
         config_list = []
         for part_name in UtilParameter.part:
+            if self.config_menu[part_name] is False:
+                continue
             for k in self.config_menu[part_name].keys():
                 config_list.append(k + '=')
                 config_list.append(part_name + '.' + k + '=')

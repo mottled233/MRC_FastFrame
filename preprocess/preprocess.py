@@ -1,4 +1,5 @@
 from util.util_filepath import *
+from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
 from preprocess.batching import *
 
@@ -17,16 +18,22 @@ class Feature(object):
 
 class PreProcess:
 
-    def __init__(self, examples=None, file_name=None, file_format="pickle", file_type="example",
-                 max_seq_length=512, vocab_name="vocab", vocab_format="txt", vocab_type="vocab", do_lowercase=True):
+    def __init__(self, logger, args, examples=None):
 
-        self.max_seq_length = max_seq_length
-        if examples is None:
-            self.get_examples_from_file(file_name, file_format, file_type)
-        else:
+        self.logger = logger
+
+        self.args = args
+        self.max_seq_length = self.args["max_seq_length"]
+        if examples is not None:
             self.examples = examples
-        self.file_name = file_name
-        self.c_token = CToken(vocab_name, vocab_format, vocab_type, do_lowercase)
+        else:
+            self.get_examples_from_file(
+                self.args["examples_name"], self.args["examples_format"], self.args["examples_type"]
+            )
+        self.file_name = self.args["examples_name"]
+        self.c_token = CToken(
+            self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
+        )
         # 使用指定的字典，构建tokenizer
 
         self.features = []
@@ -177,20 +184,15 @@ class PreProcess:
                 qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
             ))
 
-    def data_generator(self,
-                       batch_size,
-                       epoch=1,
-                       shuffle=True,
-                       shuffle_seed=None):
+    def data_generator(self, args):
 
         def feature_generator():
-            for epoch_index in range(epoch):
-                if shuffle:
-                    if shuffle_seed is not None:
-                        np.random.seed(shuffle_seed)
-                    np.random.shuffle(self.features)
-                for feature in self.features:
-                    yield feature
+            if self.args["shuffle"]:
+                if self.args["shuffle_seed"] is not None:
+                    np.random.seed(self.args["shuffle_seed"])
+                np.random.shuffle(self.features)
+            for feature in self.features:
+                yield feature
 
         def generate_batch_data(batch_data):
             qas_ids = [inst[0] for inst in batch_data]
@@ -209,7 +211,7 @@ class PreProcess:
                 batch_data.append([
                     feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
                 ])
-                if len(batch_data) == batch_size:
+                if len(batch_data) == args["batch_size"]:
                     batch_data = generate_batch_data(batch_data)
                     yield batch_data
                     batch_data = []

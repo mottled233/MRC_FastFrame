@@ -24,7 +24,7 @@ def get_fullurl(file_type, file_name, file_format="json"):
     try:
         url += folder[file_type]
     except Exception:
-        raise KeyError("未知文件种类") from Exception
+        raise KeyError("Unknown file-type '{}'".format(file_type)) from Exception
         # 出现未知文件种类，返回错误信息
     if not os.path.exists(url):
         os.mkdir(url)
@@ -32,7 +32,7 @@ def get_fullurl(file_type, file_name, file_format="json"):
     try:
         url += suffix[file_format]
     except Exception:
-        raise KeyError("不可处理的文件格式") from Exception
+        raise KeyError("Intractable file-format '{}'".format(file_format)) from Exception
         # 出现不可处理的文件格式，返回错误信息
     return url
 

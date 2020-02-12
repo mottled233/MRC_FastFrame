@@ -118,7 +118,7 @@ class UtilLogging:
         try:
             self.file_handler.setLevel(UtilLogging.lev[flevel])
         except Exception:
-            raise AttributeError("未设置输出到文件") from Exception
+            raise AttributeError("Output is not set to file") from Exception
 
     def set_stream_level(self, slevel):
         """
@@ -128,4 +128,4 @@ class UtilLogging:
         try:
             self.stream_handler.setLevel(UtilLogging.lev[slevel])
         except Exception:
-            raise AttributeError("未设置输出到控制台") from Exception
+            raise AttributeError("Output is not set to console") from Exception

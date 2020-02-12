@@ -26,7 +26,7 @@ class PreProcess:
 
         self.args = args
         self.max_seq_length = self.args["max_seq_length"]
-        # self.logger.info("准备获取文件中的examples数据")
+        # self.logger.info("Prepare to get examples data ……")
         if examples is not None:
             self.file_name = logger.log_name
             self.examples = examples
@@ -35,12 +35,12 @@ class PreProcess:
             self.get_examples_from_file(
                 self.args["examples_name"], self.args["examples_format"], self.args["examples_type"]
             )
-        self.logger.info("获取examples数据成功")
-        # self.logger.info("准备构建tokenizer")
+        self.logger.info("Successfully get examples data")
+        # self.logger.info("Prepare to build tokenizer ……")
         self.c_token = CToken(
             self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
         )
-        self.logger.info("tokenizer构建成功")
+        self.logger.info("Successfully build tokenizer")
         # 使用指定的字典，构建tokenizer
 
         self.features = []
@@ -53,7 +53,9 @@ class PreProcess:
         try:
             self.examples = read_file(file_type, file_name, file_format)
         except Exception:
-            raise FileNotFoundError("未发现数据集文件")
+            raise FileNotFoundError("Missing dataset file {}".format(
+                get_fullurl(file_type, file_name, file_format)
+            ))
             # 未发现数据集文件，返回错误信息
 
     def exams_tokenize(self, examples, token_id=2):
@@ -98,7 +100,8 @@ class PreProcess:
         l1 = len(ques_ids)
         l2 = len(ans_ids)
         if l1 != l2:
-            raise Exception("问题答案数量不匹配")
+            raise Exception("Different number of Questions and Answers")
+            # 发现问题答案数量不匹配，返回错误信息
         batch_tokens = []
         max_len = 0
         total_token_num = 0
@@ -164,20 +167,20 @@ class PreProcess:
         完成数据tokenize操作与缓存，进行句子的填充并返回id数据
         """
 
-        self.logger.info("开始进行batch化前的数据处理")
+        self.logger.info("Start data-preprocessing before batching")
         ques_ids, ans_ids = self.exams_tokenize(self.examples)
-        self.logger.info("  - 完成数据tokenize")
+        self.logger.info("  - Complete tokenizing")
         batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
-        self.logger.info("  - 完成question与answer的拼接")
+        self.logger.info("  - Complete splicing question and answer")
         if self.args["is_save"]:
             # self.save_tokens(ques_ids, file_name + "_ques_processed")
             # self.save_tokens(ans_ids, file_name + "_ans_processed")
             self.save_tokens(batch_tokens, self.file_name + "_processed")
-            self.logger.info("  - 完成tokenize结果的缓存")
-            self.logger.info("    储存位置为" + "dataset_processed/" + self.file_name + "_processed")
+            self.logger.info("  - Complete cache of tokenize results")
+            self.logger.info("    File location: " + "dataset_processed/" + self.file_name + "_processed")
         if self.args["is_mask"]:
             batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
-            self.logger.info("  - 完成数据的mask覆盖")
+            self.logger.info("  - Complete masking tokens")
 
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
@@ -192,21 +195,22 @@ class PreProcess:
                 try:
                     labels.append(temp[example.yes_or_no])
                 except Exception:
-                    raise KeyError("训练集数据label错误") from Exception
+                    raise KeyError("Error in labels of train-dataset") from Exception
                     # 训练集标签中出现Yes,No,Depends以外的值，返回错误信息
         else:
             labels = [3] * len(self.examples)
-        self.logger.info("  - 填充数据至指定长度，获取相应id信息")
+        self.logger.info("  - Complete filling the tokens to max_seq_length, and getting other ids")
 
         self.features = []
         for i in range(len(self.examples)):
             self.features.append(Feature(
                 qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
             ))
-        self.logger.info("构建features对象，数据处理完毕")
+        self.logger.info("  - Complete constructing features object")
+        self.logger.info("Finish data-preprocessing")
 
     def sample_generator(self):
-        self.logger.info("预处理新一轮数据，共{}条数据".format(len(self.features)))
+        self.logger.info("Preprocessing a new round of data of {}".format(len(self.features)))
         if not self.args["is_predict"]:
             for feature in self.features:
                 yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label

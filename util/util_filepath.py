@@ -3,7 +3,6 @@ import json
 import csv
 import pickle
 
-
 root = os.path.abspath("")
 folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/result",
           "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}

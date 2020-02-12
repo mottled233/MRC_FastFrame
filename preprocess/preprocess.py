@@ -199,45 +199,13 @@ class PreProcess:
             ))
         self.logger.info("构建features对象，数据处理完毕")
 
-    def data_generator(self, args):
+    def sample_generator(self):
+        self.logger.info("预处理新一轮数据，共{}条数据".format(len(self.features)))
+        for feature in self.features:
+            yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
 
-        """
-        def feature_generator():
-
-            if self.args["shuffle"]:
-                if self.args["shuffle_seed"] is not None:
-                    np.random.seed(self.args["shuffle_seed"])
-                np.random.shuffle(self.features)
-            for feature in self.features:
-                yield feature
-        """
-
-        def generate_batch_data(batch_data):
-
-            qas_ids = [inst[0] for inst in batch_data]
-            src_ids = [inst[1] for inst in batch_data]
-            pos_ids = [inst[2] for inst in batch_data]
-            sent_ids = [inst[3] for inst in batch_data]
-            input_masks = [inst[4] for inst in batch_data]
-            labels = [inst[5] for inst in batch_data]
-            qas_ids = np.array(qas_ids).astype("int64").reshape([-1, 1])
-            labels = np.array(labels).astype("int64").reshape([-1, 1])
-            return [qas_ids, src_ids, pos_ids, sent_ids, input_masks, labels]
-
-        def batch_generator():
-
-            if self.args["shuffle"]:
-                if self.args["shuffle_seed"] is not None:
-                    np.random.seed(self.args["shuffle_seed"])
-                np.random.shuffle(self.features)
-
-            batch_data = []
-            for feature in self.features:
-                batch_data.append([
-                    feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
-                ])
-                if len(batch_data) == args["batch_size"]:
-                    yield generate_batch_data(batch_data)
-                    batch_data = []
-
-        return batch_generator()
+    def batch_generator(self):
+        reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])
+        if self.args["shuffle"]:
+            reader = fluid.io.shuffle(reader, buf_size=2*self.args["batch_size"])
+        return reader

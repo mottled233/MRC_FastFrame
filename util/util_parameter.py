@@ -100,9 +100,10 @@ class UtilParameter:
         """
 
         try:
-            dict = self.config["global"]
-            dict.update(self.config[part_name])
-            return dict
+            conf = self.config["global"]
+            if part_name != "global":
+                conf.update(self.config[part_name])
+            return conf
         except Exception:
             raise KeyError("未知模块名") from Exception
             # 出现未知模块名，返回错误信息

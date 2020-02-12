@@ -119,8 +119,8 @@ class Dataset:
         :return:
         """
         save_file(self.train_examples, "example", "train", "pickle")
-        save_file(self.dev_examples, "example", "train", "pickle")
-        save_file(self.test_examples, "example", "train", "pickle")
+        save_file(self.dev_examples, "example", "dev", "pickle")
+        save_file(self.test_examples, "example", "test", "pickle")
         return
 
     def load_examples(self):

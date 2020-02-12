@@ -7,6 +7,7 @@ import util.model_utils as model_utils
 
 import model.optimizer
 import model.lr_stategy as lr_strategy
+import model.classifier as classifier
 from model.network_test import network as network
 
 
@@ -60,7 +61,8 @@ class TrainEngine(object):
             # 使用 fluid.unique_name.guard() 实现与test program的参数共享
             with fluid.unique_name.guard():
                 self.logger.info("Initializing training neural network...")
-                train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                # train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                train_data_loader, train_loss, _, _, _ = classifier.create_model(self.args, is_prediction=False)
                 self.logger.info("Training neural network initialized.")
                 # 获取训练策略
                 self.logger.info("Setting training strategy...")
@@ -86,7 +88,8 @@ class TrainEngine(object):
             # 使用 fluid.unique_name.guard() 实现与train program的参数共享
             with fluid.unique_name.guard():
                 self.logger.info("Initializing validation neural network...")
-                valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
+                # valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
+                valid_data_loader, valid_loss, _, _, _ = classifier.create_model(self.args, is_prediction=False)
                 self.logger.info("Validation neural network initialized.")
 
         valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))

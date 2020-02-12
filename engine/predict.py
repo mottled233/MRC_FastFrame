@@ -1,6 +1,5 @@
 import paddle.fluid as fluid
 from util.model_utils import load_model_params
-from util.util_filepath import get_fullurl
 from engine.train import TrainEngine
 from model.classifier import create_model
 import json as js
@@ -64,13 +63,20 @@ class PredictEngine(object):
                                               places=TrainEngine.get_data_run_places(self.args))
         self.logger.info("Has get batched data input.")
         # 喂入模型
-        for feed_data in self.loader:
-            prob, qas_id = self.exe.run(self.predict_program,
-                                        feed=feed_data,
-                                        fetch_list=[self.probs, self.qas_id])
-            self.probs_list.append(prob)
-            self.qas_id_list.append(qas_id)
+        for feed_data in self.loader():
+            probs_batch, qas_id_batch = self.exe.run(self.predict_program,
+                                                     feed=feed_data,
+                                                     fetch_list=[self.probs, self.qas_id])
+            self.probs_list.extend(probs_batch)
+            self.qas_id_list.extend(qas_id_batch)
+        # 将numpy数据转化成普通的str和int方便打印到文件中
+        self.probs_list = [x.tolist() for x in self.probs_list]
+        self.qas_id_list = [int(x[0]) for x in self.qas_id_list]
         self.logger.info("Finish calculate the probs!")
+
+    def predict_for_one_sample(self, example):
+        # TODO 预测一个样例
+        return
 
     def generate_result(self):
         """
@@ -84,7 +90,7 @@ class PredictEngine(object):
             "num of data from generator and num of data from test_examples should be same"
         self.write_to_json()
         self.logger.info("Finish write data to {}, finish predict process!"
-                         .format(get_fullurl("result", "result", "json")))
+                         .format(self.args["result_file_path"]))
 
     def probs_reprocess(self, op):
         """
@@ -102,7 +108,6 @@ class PredictEngine(object):
         answer_list = ["Yes", "No", "Depends"]
         answers = []
         for probs in self.probs_list:
-            assert type(probs) == list
             max_index = probs.index(max(probs))
             answers.append(answer_list[max_index])
         self.yesno_list = answers
@@ -116,7 +121,7 @@ class PredictEngine(object):
         将结果写入到本地result路径下
         :return:
         """
-        predict_file = get_fullurl("result", "result", "json")
+        predict_file = self.args["result_file_path"]
         with open(predict_file, "w", encoding='utf-8') as f:
             for (i, qas_id) in enumerate(self.qas_id_list):
                 yesno_answer = self.yesno_list[i]

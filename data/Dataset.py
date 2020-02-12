@@ -1,15 +1,16 @@
 from data.Example import Example
 import json as js
-from util.util_filepath import get_fullurl, save_file, read_file
 import math
+import pickle
 
 
 class Dataset:
-    def __init__(self, logger):
+    def __init__(self, args, logger):
         self.examples = []
         self.train_examples = []
         self.dev_examples = []
         self.test_examples = []
+        self.args = args
         self.logger = logger
 
     def __split(self, full_list, ratio):
@@ -35,8 +36,8 @@ class Dataset:
         """
         # 合并所有的训练集
         files = []
-        file1 = open(get_fullurl("data", "zhidao.train", "json"), "r", encoding='utf-8')
-        file2 = open(get_fullurl("data", "search.train", "json"), "r", encoding='utf-8')
+        file1 = open(self.args["train_file_path_zhidao"], "r", encoding='utf-8')
+        file2 = open(self.args["train_file_path_search"], "r", encoding='utf-8')
         files.append(file1)
         files.append(file2)
 
@@ -102,9 +103,9 @@ class Dataset:
         self.train_examples, dev_test = self.__split(self.examples, ration1)
         ration2 = float(nums[1]) / (nums[1] + nums[2])
         self.dev_examples, self.test_examples = self.__split(dev_test, ration2)
-        self.logger.info("{len1}条训练example，{len2}条验证example，{len3}条测试example"
-              .format(len1=len(self.train_examples), len2=len(self.dev_examples),
-                      len3=len(self.test_examples)))
+        self.logger.info("{len1} train examples，{len2} dev examples，{len3} test examples"
+                         .format(len1=len(self.train_examples), len2=len(self.dev_examples),
+                                 len3=len(self.test_examples)))
 
     def get_split(self):
         """
@@ -118,9 +119,14 @@ class Dataset:
         保存example_list的缓存
         :return:
         """
-        save_file(self.train_examples, "example", "train", "pickle")
-        save_file(self.dev_examples, "example", "dev", "pickle")
-        save_file(self.test_examples, "example", "test", "pickle")
+        self.logger.info("Loading examples from local path...")
+        with open(self.args["train_examples_path"], "wb") as f:
+            pickle.dump(self.train_examples, f)
+        with open(self.args["dev_examples_path"], "wb") as f:
+            pickle.dump(self.dev_examples, f)
+        with open(self.args["test_examples_path"], "wb") as f:
+            pickle.dump(self.test_examples, f)
+        self.logger.info("Loading examples successful!")
         return
 
     def load_examples(self):
@@ -128,9 +134,14 @@ class Dataset:
         读取example_list的缓存
         :return:
         """
-        self.train_examples = read_file("example", "train", "pickle")
-        self.dev_examples = read_file("example", "dev", "pickle")
-        self.test_examples = read_file("example", "test", "pickle")
+        self.logger.info("Saving examples to local path...")
+        with open(self.args["train_examples_path"], "rb") as f:
+            self.train_examples = pickle.load(f)
+        with open(self.args["dev_examples_path"], "rb") as f:
+            self.dev_examples = pickle.load(f)
+        with open(self.args["test_examples_path"], "rb") as f:
+            self.test_examples = pickle.load(f)
+        self.logger.info("Saving examples successful!")
         return
 
 

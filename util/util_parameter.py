@@ -4,7 +4,12 @@ from util.util_filepath import *
 
 class UtilParameter:
 
-    part = ["global", "dataset", "build", "train", "predict"]
+    GLOBAL = "global"
+    DATASET = "dataset"
+    MODEL_BUILD = "build"
+    TRAIN = "train"
+    PREDICT = "predict"
+    part = [GLOBAL, DATASET, MODEL_BUILD, TRAIN, PREDICT]
     # part: 模块划分
 
     def __init__(self, file_name="config_default", file_format="json"):

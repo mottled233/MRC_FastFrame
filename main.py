@@ -55,21 +55,20 @@ if __name__ == "__main__":
     datasets.load_examples()
     trainset, validset, testset = datasets.get_split()  # 这三个函数要修改，split应该检查是否已分割
     # datasets.save_example()
-
-    train_preprocess = PreProcess(logger, param.get_config("dataset"), examples=trainset)
+    print(trainset[0])
+    train_preprocess = PreProcess(logger, param.get_config(param.DATASET), examples=trainset)
     train_preprocess.prepare_batch_data()
     train_batch_reader = train_preprocess.batch_generator()
-    print(len(next(train_batch_reader())))
 
-    # valid_preprocess = PreProcess(logger, param.get_config("global"), examples=validset)
-    # valid_batch_reader = valid_preprocess.batch_generator()
+    valid_preprocess = PreProcess(logger, param.get_config(param.DATASET), examples=validset)
+    valid_preprocess.prepare_batch_data()
+    valid_batch_reader = valid_preprocess.batch_generator()
     # test_preprocess = PreProcess(trainset)
     # test_batch_reader = test_preprocess.batch_generator()
     #
-    # # reader = fluid.io.batch(fake_sample_generator, batch_size=args["batch_size"])
 
-    # train_engine = TrainEngine(train_batch_reader, valid_batch_reader, param.get_config("train"), logger)
-    # t1 = time.time()
-    # train_engine.train()
-    # t2 = time.time()
-    # print(t2-t1)
+    train_engine = TrainEngine(train_batch_reader, valid_batch_reader, param, logger)
+    t1 = time.time()
+    train_engine.train()
+    t2 = time.time()
+    print(t2-t1)

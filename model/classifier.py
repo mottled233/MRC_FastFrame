@@ -18,6 +18,7 @@ def create_model(args,
                  is_prediction=False):
 
     # 输入定义
+    qas_ids = fluid.data(name='qas_ids', dtype='int64', shape=[-1, 1])
     src_ids = fluid.data(name='src_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     pos_ids = fluid.data(name='pos_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     sent_ids = fluid.data(name='sent_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
@@ -25,9 +26,9 @@ def create_model(args,
     labels = fluid.data(name='labels', dtype='int64', shape=[-1, 1])
     # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
     if is_prediction:
-        feed_list = [src_ids, pos_ids, sent_ids, input_mask]
+        feed_list = [qas_ids, src_ids, pos_ids, sent_ids, input_mask]
     else:
-        feed_list = [src_ids, pos_ids, sent_ids, input_mask, labels]
+        feed_list = [qas_ids, src_ids, pos_ids, sent_ids, input_mask, labels]
     reader = fluid.io.DataLoader.from_generator(feed_list=feed_list, capacity=64, iterable=True)
 
     # 模型部分
@@ -61,7 +62,7 @@ def create_model(args,
     # 预测任务仅返回dataloader和预测出的每个label对应的概率
     if is_prediction:
         probs = fluid.layers.softmax(logits)
-        return reader, probs
+        return reader, probs, qas_ids
 
     # 训练任务则计算loss
     ce_loss, probs = fluid.layers.softmax_with_cross_entropy(
@@ -75,4 +76,4 @@ def create_model(args,
     accuracy = fluid.layers.accuracy(input=probs, label=labels, total=num_seqs)
 
     # 返回dataloader，loss，预测结果，和准确度
-    return reader, loss, probs, accuracy
+    return reader, loss, probs, accuracy, qas_ids

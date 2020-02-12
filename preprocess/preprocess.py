@@ -204,6 +204,8 @@ class PreProcess:
         def feature_generator():
 
             if self.args["shuffle"]:
+                if self.args["shuffle_seed"] is not None:
+                    np.random.seed(self.args["shuffle_seed"])
                 np.random.shuffle(self.features)
             for feature in self.features:
                 yield feature

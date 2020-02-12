@@ -13,7 +13,8 @@
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
     "vocab_size":{"type":"int","description":"词表的大小","default":0},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
-    "shuffle":{"type":"bool","description":"是否进行examples的打乱","default":true}
+    "shuffle":{"type":"bool","description":"是否进行examples的打乱","default":true},
+    "shuffle_seed":{"type":"int","description":"打乱examples使用的seed","default":null}
   },
 "build":{
     "num_labels":{"type":"int","description":"分类的类别数","default":3},

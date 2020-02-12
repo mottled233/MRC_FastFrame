@@ -6,8 +6,13 @@
     "model_path":{"type":"string","description":"预测使用模型路径","default":"File_Directory/models/model"}
   },
 "dataset":{
-    "dataset_path":{"type":"string", "description":"数据集路径","default":"File_Directory/dataset"},
-    "examples_path":{"type":"string", "description":"examples缓存路径","default":"File_Directory/examples"},
+    "dataset_path":{"type":"string","description":"数据集路径","default":"File_Directory/dataset"},
+    "examples_path":{"type":"string","description":"examples缓存路径","default":"File_Directory/examples"},
+    "train_file_path_zhidao":{"type":"string","description":"zhidao数据集路径","default":"File_Directory/dataset/zhidao.train.json"},
+    "train_file_path_search":{"type":"string","description":"search数据集路径","default":"File_Directory/dataset/search.train.json"},
+    "train_examples_path":{"type":"string","description":"划分好的训练集缓存路径","default":"File_Directory/examples/train_examples"},
+    "dev_examples_path":{"type":"string","description":"划分好的验证集缓存路径","default":"File_Directory/examples/dev_examples"},
+    "test_examples_path":{"type":"string","description":"划分好的测试集缓存路径","default":"File_Directory/examples/test_examples"},
     "batch_size":{"type":"int","description":"batch的大小","default":32},
     "max_seq_length":{"type":"int","description":"最长序列长度","default":512},
     "examples_type":{"type":"string","description":"读取examples文件类型","default":"example"},
@@ -35,7 +40,7 @@
     "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0},
     "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0},
     "initializer_range":{"type":"float","description":"参数随机初始化时的标准差","default":0.02}
-},
+  },
 "train":{
     "max_epoch":{"type":"int","description":"最大训练epoch","default":20},
     "early_stopping":{"type":"bool","description":"是否采用早停策略","default":true},
@@ -60,7 +65,13 @@
     "snapshot_frequency":{"type":"int", "description":"每隔多少epoch保存一次训练快照", "default":10},
     "continue_train":{"type":"bool","description":"是否是接上一次训练，若为true必须指定load_model_path","default":false},
     "pretrained_model_path":{"type":"string", "description":"当是第一次训练时，指定预训练模型", "default":""}
-},
-"predict":{
+  },
+"predict": {
+    "use_parallel":{"type":"bool","description":"是否并行运行训练/测试","default":false},
+    "use_gpu":{"type":"bool","description":"是否使用gpu","default":true},
+    "num_of_device":{"type":"int","description":"使用的设备数","default":1},
+    "batch_size":{"type":"int","description":"数据的batch大小","default":32},
+    "model_path":{"type":"string","description":"模型地址","default":"File_Directory/models/model"},
+    "result_file_path":{"type":"string","description":"预测结果地址","default":"File_Directory/result/result.json"}
   }
 }

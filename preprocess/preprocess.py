@@ -159,27 +159,25 @@ class PreProcess:
         return prepare_batch_data(insts, max_len, total_token_num, voc_size, pad_id, cls_id, sep_id, mask_id)
     '''
 
-    def prepare_batch_data(self, is_mask=False, is_save=False, file_name=None):
+    def prepare_batch_data(self):
         """
         完成数据tokenize操作与缓存，进行句子的填充并返回id数据
         """
 
         self.logger.info("开始进行batch化前的数据处理")
         ques_ids, ans_ids = self.exams_tokenize(self.examples)
-        self.logger.info("  -完成数据tokenize")
+        self.logger.info("  - 完成数据tokenize")
         batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
-        self.logger.info("  -完成question与answer的拼接")
-        if is_save:
-            if file_name is None:
-                file_name = self.file_name
+        self.logger.info("  - 完成question与answer的拼接")
+        if self.args["is_save"]:
             # self.save_tokens(ques_ids, file_name + "_ques_processed")
             # self.save_tokens(ans_ids, file_name + "_ans_processed")
-            self.save_tokens(batch_tokens, file_name + "_processed")
-            self.logger.info("  -完成tokenize结果的缓存")
-            self.logger.info("   储存位置为" + "dataset_processed/" + file_name + "_processed")
-        if is_mask:
+            self.save_tokens(batch_tokens, self.file_name + "_processed")
+            self.logger.info("  - 完成tokenize结果的缓存")
+            self.logger.info("    储存位置为" + "dataset_processed/" + self.file_name + "_processed")
+        if self.args["is_mask"]:
             batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
-            self.logger.info("  -完成数据的mask覆盖")
+            self.logger.info("  - 完成数据的mask覆盖")
 
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
@@ -189,8 +187,16 @@ class PreProcess:
         temp = {"Yes": 0, "No": 1, "Depends": 2}
         for example in self.examples:
             qas_ids.append(example.qas_id)
-            labels.append(temp[example.yes_or_no])
-        self.logger.info("  -填充数据至指定长度，获取相应id信息")
+        if not self.args["is_predict"]:
+            for example in self.examples:
+                try:
+                    labels.append(temp[example.yes_or_no])
+                except Exception:
+                    raise KeyError("训练集数据label错误") from Exception
+                    # 训练集标签中出现Yes,No,Depends以外的值，返回错误信息
+        else:
+            labels = [3] * len(self.examples)
+        self.logger.info("  - 填充数据至指定长度，获取相应id信息")
 
         self.features = []
         for i in range(len(self.examples)):
@@ -201,8 +207,12 @@ class PreProcess:
 
     def sample_generator(self):
         self.logger.info("预处理新一轮数据，共{}条数据".format(len(self.features)))
-        for feature in self.features:
-            yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
+        if not self.args["is_predict"]:
+            for feature in self.features:
+                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
+        else:
+            for feature in self.features:
+                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask
 
     def batch_generator(self):
         reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])

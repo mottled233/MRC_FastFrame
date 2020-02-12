@@ -8,12 +8,13 @@ class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
 
-    def __init__(self, u_param, is_file=True, is_stream=True):
+    def __init__(self, u_param, is_file=True, is_stream=True, output_config=True):
         """
         选择是否写入文件与输出到控制台
         :param u_param: 参数数据
         :param is_file: 是否输出到文件
-        :param is_stream: 是否输出到数据流
+        :param is_stream: 是否输出到控制台
+        :param output_config: 是否保存参数配置文件
         """
 
         present_time = datetime.datetime.now()
@@ -21,25 +22,27 @@ class UtilLogging:
         # 用当前时间为本次日志命名
 
         self.logger = logging.getLogger(self.log_name)
-        self.file_handler = logging.FileHandler(get_fullurl("log", self.log_name, "txt"))
-        self.stream_handler = logging.StreamHandler()
-        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        # file_handler: 文件输出
-        # stream_handler: 数据流输出
-        # formatter: 统一的日志输出格式
-
         self.logger.propagate = False  # 不向root传播，防止重复输出
         self.logger.setLevel(level=logging.DEBUG)  # 设置整体最低层级为debug
-        self.set_file_level(2)
-        self.file_handler.setFormatter(self.formatter)
+
+        self.stream_handler = logging.StreamHandler()
+        # formatter: 统一的日志输出格式
+        # file_handler: 文件输出
+        # stream_handler: 控制台输出
+
         if is_file:
+            self.file_handler = logging.FileHandler(get_fullurl("log", self.log_name, "txt"))
+            self.set_file_level(2)
+            self.file_handler.setFormatter(self.formatter)
             self.logger.addHandler(self.file_handler)
-        self.set_stream_level(2)
-        self.stream_handler.setFormatter(self.formatter)
         if is_stream:
+            self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            self.set_stream_level(2)
+            self.stream_handler.setFormatter(self.formatter)
             self.logger.addHandler(self.stream_handler)
 
-        self.log_config(u_param)
+        if output_config:
+            self.log_config(u_param)
 
     def log_config(self, u_param):
         """
@@ -60,12 +63,12 @@ class UtilLogging:
         content.append(jsonstr)
         # 输出可进行使用的json格式参数配置
         content.append('\n\n')
-        save_file(content, "log", self.log_name, 'txt')
+        save_file(content, "log", self.log_name + " config", 'txt')
 
     def log_input(self, level, message, pos=None):
         """
-        记录日志信息，会同步输出到命令行和日志文件中
-        level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示，颜色分别为白、绿、黄、红、红
+        记录日志信息，level为'debug', 'info', 'warning', 'error', 'critical'，分别用数值1-5表示
+        # 颜色分别为白、绿、黄、红、红
         :param level: 信息等级
         :param message: 信息内容
         :param pos: 文件及函数所在位置，run as u_log.log_input(level, message, sys._getframe().f_code)
@@ -112,12 +115,17 @@ class UtilLogging:
         """
         设置文件中日志的筛选等级
         """
-
-        self.file_handler.setLevel(UtilLogging.lev[flevel])
+        try:
+            self.file_handler.setLevel(UtilLogging.lev[flevel])
+        except Exception:
+            raise AttributeError("未设置输出到文件") from Exception
 
     def set_stream_level(self, slevel):
         """
         设置控制台中日志的筛选等级
         """
 
-        self.stream_handler.setLevel(UtilLogging.lev[slevel])
+        try:
+            self.stream_handler.setLevel(UtilLogging.lev[slevel])
+        except Exception:
+            raise AttributeError("未设置输出到控制台") from Exception

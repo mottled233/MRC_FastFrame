@@ -1,3 +1,5 @@
+import paddle.fluid as fluid
+
 from util.util_filepath import *
 from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
@@ -24,16 +26,21 @@ class PreProcess:
 
         self.args = args
         self.max_seq_length = self.args["max_seq_length"]
+        # self.logger.info("准备获取文件中的examples数据")
         if examples is not None:
+            self.file_name = logger.log_name
             self.examples = examples
         else:
+            self.file_name = self.args["examples_name"]
             self.get_examples_from_file(
                 self.args["examples_name"], self.args["examples_format"], self.args["examples_type"]
             )
-        self.file_name = self.args["examples_name"]
+        self.logger.info("获取examples数据成功")
+        # self.logger.info("准备构建tokenizer")
         self.c_token = CToken(
             self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
         )
+        self.logger.info("tokenizer构建成功")
         # 使用指定的字典，构建tokenizer
 
         self.features = []
@@ -157,16 +164,22 @@ class PreProcess:
         完成数据tokenize操作与缓存，进行句子的填充并返回id数据
         """
 
+        self.logger.info("开始进行batch化前的数据处理")
         ques_ids, ans_ids = self.exams_tokenize(self.examples)
+        self.logger.info("  -完成数据tokenize")
         batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
+        self.logger.info("  -完成question与answer的拼接")
         if is_save:
             if file_name is None:
                 file_name = self.file_name
             # self.save_tokens(ques_ids, file_name + "_ques_processed")
             # self.save_tokens(ans_ids, file_name + "_ans_processed")
             self.save_tokens(batch_tokens, file_name + "_processed")
+            self.logger.info("  -完成tokenize结果的缓存")
+            self.logger.info("   储存位置为" + "dataset_processed/" + file_name + "_processed")
         if is_mask:
             batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
+            self.logger.info("  -完成数据的mask覆盖")
 
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
@@ -177,24 +190,26 @@ class PreProcess:
         for example in self.examples:
             qas_ids.append(example.qas_id)
             labels.append(temp[example.yes_or_no])
+        self.logger.info("  -填充数据至指定长度，获取相应id信息")
 
         self.features = []
         for i in range(len(self.examples)):
             self.features.append(Feature(
                 qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
             ))
+        self.logger.info("构建features对象，数据处理完毕")
 
     def data_generator(self, args):
 
         def feature_generator():
+
             if self.args["shuffle"]:
-                if self.args["shuffle_seed"] is not None:
-                    np.random.seed(self.args["shuffle_seed"])
                 np.random.shuffle(self.features)
             for feature in self.features:
                 yield feature
 
         def generate_batch_data(batch_data):
+
             qas_ids = [inst[0] for inst in batch_data]
             src_ids = [inst[1] for inst in batch_data]
             pos_ids = [inst[2] for inst in batch_data]
@@ -206,6 +221,7 @@ class PreProcess:
             return [qas_ids, src_ids, pos_ids, sent_ids, input_masks, labels]
 
         def batch_generator():
+
             batch_data = []
             for feature in feature_generator():
                 batch_data.append([
@@ -216,4 +232,4 @@ class PreProcess:
                     yield batch_data
                     batch_data = []
 
-        return batch_generator
+        return batch_generator()

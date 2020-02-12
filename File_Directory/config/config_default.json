@@ -18,6 +18,8 @@
   },
 "build":{
     "num_labels":{"type":"int","description":"分类的类别数","default":3},
+    "use_fp16":{"type":"bool","description":"是否使用浮点16位","default":false},
+    "type_vocab_size":{"type":"bool","description":"sententce_type的类型数","default":false},
     "hidden_size":{"type":"int","description":"embedding后向量的维数","default":384},
     "num_hidden_layers":{"type":"int","description":"内部encoder的层数","default":12},
     "num_attention_heads":{"type":"int","description":"attention_heads的数量","default":12},

@@ -3,7 +3,6 @@ import json
 import csv
 import pickle
 
-
 root = os.path.abspath("")
 folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/result",
           "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}
@@ -25,7 +24,7 @@ def get_fullurl(file_type, file_name, file_format="json"):
     try:
         url += folder[file_type]
     except Exception:
-        raise KeyError("未知文件种类") from Exception
+        raise KeyError("Unknown file-type '{}'".format(file_type)) from Exception
         # 出现未知文件种类，返回错误信息
     if not os.path.exists(url):
         os.mkdir(url)
@@ -33,7 +32,7 @@ def get_fullurl(file_type, file_name, file_format="json"):
     try:
         url += suffix[file_format]
     except Exception:
-        raise KeyError("不可处理的文件格式") from Exception
+        raise KeyError("Intractable file-format '{}'".format(file_format)) from Exception
         # 出现不可处理的文件格式，返回错误信息
     return url
 
@@ -44,21 +43,27 @@ def read_file(file_type, file_name, file_format="json"):
     """
     url = get_fullurl(file_type, file_name, file_format)
 
-    if file_format != "pickle":
-        with open(url, 'r', encoding="utf-8") as f:
-            if file_format == "json":
+    if file_format == "json":
+        try:
+            with open(url, 'r', encoding="utf-8") as f:
                 content = json.load(f)
-            else:
+        except json.decoder.JSONDecodeError:
+            with open(url, 'r', encoding="utf-8") as f:
                 content = []
                 for line in f.readlines():
-                    if file_format == "csv":
-                        item = line.replace('\n', '').split(',')
-                    elif file_format == "tsv":
-                        item = line.replace('\n', '').split('\t')
-                    elif file_format == "txt":
-                        item = line
-                    # print(item)
-                    content.append(item)
+                    content.append(json.loads(line))
+    elif file_format != "pickle":
+        with open(url, 'r', encoding="utf-8") as f:
+            content = []
+            for line in f.readlines():
+                if file_format == "csv":
+                    item = line.replace('\n', '').split(',')
+                elif file_format == "tsv":
+                    item = line.replace('\n', '').split('\t')
+                elif file_format == "txt":
+                    item = line
+                # print(item)
+                content.append(item)
     else:
         with open(url, 'rb') as f:
             content = pickle.load(f)
@@ -75,12 +80,11 @@ def save_file(content, file_type, file_name, file_format="json"):
     if file_format != "pickle":
         with open(url, 'w', encoding='utf-8', newline='') as f:
             if file_format == "json":
-                f.write('[')
                 for line in content:
+                    print(line)
                     jsonstr = json.dumps(line)
                     f.write(jsonstr)
-                    f.write(',')
-                f.write(']')
+                    f.write('\n')
             elif file_format == "csv":
                 writer = csv.writer(f)
                 for line in content:

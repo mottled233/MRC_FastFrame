@@ -1,4 +1,7 @@
+import paddle.fluid as fluid
+
 from util.util_filepath import *
+from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
 from preprocess.batching import *
 
@@ -17,19 +20,37 @@ class Feature(object):
 
 class PreProcess:
 
-    def __init__(self, examples=None, file_name=None, file_format="pickle", file_type="example",
-                 max_seq_length=512, vocab_name="vocab", vocab_format="txt", vocab_type="vocab", do_lowercase=True):
+    def __init__(self, logger, args, examples=None):
 
-        self.max_seq_length = max_seq_length
-        if examples is None:
-            self.get_examples_from_file(file_name, file_format, file_type)
-        else:
+        self.logger = logger
+
+        self.args = args
+        self.max_seq_length = self.args["max_seq_length"]
+        # self.logger.info("Prepare to get examples data ……")
+        if examples is not None:
+            self.file_name = logger.log_name
             self.examples = examples
-        self.file_name = file_name
-        self.c_token = CToken(vocab_name, vocab_format, vocab_type, do_lowercase)
+        else:
+            self.file_name = self.args["examples_name"]
+            self.get_examples_from_file(
+                self.args["examples_name"], self.args["examples_format"], self.args["examples_type"]
+            )
+        self.logger.info("Successfully get examples data")
+        # self.logger.info("Prepare to build tokenizer ……")
+        self.c_token = CToken(
+            self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
+        )
+        self.logger.info("Successfully build tokenizer")
         # 使用指定的字典，构建tokenizer
 
         self.features = []
+
+    def get_vocab_size(self):
+        """
+        获取使用的词表的大小
+        """
+
+        return len(self.c_token.vocab)
 
     def get_examples_from_file(self, file_name, file_format="pickle", file_type="example"):
         """
@@ -39,7 +60,9 @@ class PreProcess:
         try:
             self.examples = read_file(file_type, file_name, file_format)
         except Exception:
-            raise FileNotFoundError("未发现数据集文件")
+            raise FileNotFoundError("Missing dataset file {}".format(
+                get_fullurl(file_type, file_name, file_format)
+            ))
             # 未发现数据集文件，返回错误信息
 
     def exams_tokenize(self, examples, token_id=2):
@@ -84,7 +107,8 @@ class PreProcess:
         l1 = len(ques_ids)
         l2 = len(ans_ids)
         if l1 != l2:
-            raise Exception("问题答案数量不匹配")
+            raise Exception("Different number of Questions and Answers")
+            # 发现问题答案数量不匹配，返回错误信息
         batch_tokens = []
         max_len = 0
         total_token_num = 0
@@ -145,73 +169,64 @@ class PreProcess:
         return prepare_batch_data(insts, max_len, total_token_num, voc_size, pad_id, cls_id, sep_id, mask_id)
     '''
 
-    def prepare_batch_data(self, is_mask=False, is_save=False, file_name=None):
+    def prepare_batch_data(self):
         """
         完成数据tokenize操作与缓存，进行句子的填充并返回id数据
         """
 
+        self.logger.info("Start data-preprocessing before batching")
         ques_ids, ans_ids = self.exams_tokenize(self.examples)
+        self.logger.info("  - Complete tokenizing")
         batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
-        if is_save:
-            if file_name is None:
-                file_name = self.file_name
+        self.logger.info("  - Complete splicing question and answer")
+        if self.args["is_save"]:
             # self.save_tokens(ques_ids, file_name + "_ques_processed")
             # self.save_tokens(ans_ids, file_name + "_ans_processed")
-            self.save_tokens(batch_tokens, file_name + "_processed")
-        if is_mask:
+            self.save_tokens(batch_tokens, self.file_name + "_processed")
+            self.logger.info("  - Complete cache of tokenize results")
+            self.logger.info("    File location: " + "dataset_processed/" + self.file_name + "_processed")
+        if self.args["is_mask"]:
             batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
+            self.logger.info("  - Complete masking tokens")
 
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
-        src_ids, pos_ids, sent_ids, input_mask = out[0], out[1], out[2], out[3]
+        src_ids, pos_ids, sent_ids, input_masks = out[0], out[1], out[2], out[3]
         qas_ids = []
         labels = []
         temp = {"Yes": 0, "No": 1, "Depends": 2}
         for example in self.examples:
             qas_ids.append(example.qas_id)
-            labels.append(temp[example.yes_or_no])
+        if not self.args["is_predict"]:
+            for example in self.examples:
+                try:
+                    labels.append(temp[example.yes_or_no])
+                except Exception:
+                    raise KeyError("Error in labels of train-dataset") from Exception
+                    # 训练集标签中出现Yes,No,Depends以外的值，返回错误信息
+        else:
+            labels = [3] * len(self.examples)
+        self.logger.info("  - Complete filling the tokens to max_seq_length, and getting other ids")
 
         self.features = []
         for i in range(len(self.examples)):
             self.features.append(Feature(
-                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_mask[i], labels[i]
+                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
             ))
+        self.logger.info("  - Complete constructing features object")
+        self.logger.info("Finish data-preprocessing")
 
-    def data_generator(self,
-                       batch_size,
-                       epoch=1,
-                       shuffle=True,
-                       shuffle_seed=None):
+    def sample_generator(self):
+        self.logger.info("Preprocessing a new round of data of {}".format(len(self.features)))
+        if not self.args["is_predict"]:
+            for feature in self.features:
+                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
+        else:
+            for feature in self.features:
+                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask
 
-        def feature_generator():
-            for epoch_index in range(epoch):
-                if shuffle:
-                    if shuffle_seed is not None:
-                        np.random.seed(shuffle_seed)
-                    np.random.shuffle(self.features)
-                for feature in self.features:
-                    yield feature
-
-        def generate_batch_data(batch_data):
-            qas_ids = [inst[0] for inst in batch_data]
-            src_ids = [inst[1] for inst in batch_data]
-            pos_ids = [inst[2] for inst in batch_data]
-            sent_ids = [inst[3] for inst in batch_data]
-            input_mask = [inst[4] for inst in batch_data]
-            labels = [inst[5] for inst in batch_data]
-            qas_ids = np.array(qas_ids).reshape([-1, 1])
-            labels = np.array(labels).reshape([-1, 1])
-            return [qas_ids, src_ids, pos_ids, sent_ids, input_mask, labels]
-
-        def batch_generator():
-            batch_data = []
-            for feature in feature_generator():
-                batch_data.append([
-                    feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
-                ])
-                if len(batch_data) == batch_size:
-                    batch_data = generate_batch_data(batch_data)
-                    yield batch_data
-                    batch_data = []
-
-        return batch_generator
+    def batch_generator(self):
+        reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])
+        if self.args["shuffle"]:
+            reader = fluid.io.shuffle(reader, buf_size=2*self.args["batch_size"])
+        return reader

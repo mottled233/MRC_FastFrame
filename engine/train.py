@@ -7,6 +7,7 @@ import util.model_utils as model_utils
 
 import model.optimizer
 import model.lr_stategy as lr_strategy
+import model.classifier as classifier
 from model.network_test import network as network
 
 
@@ -16,8 +17,8 @@ class TrainEngine(object):
     参数：
         train_data_reader： batch化的训练数据集生成器，batch大小必须大于设备数
         valid_data_reader： batch化的验证数据集生成器，batch大小必须大于设备数
-        args:
-    一个所需参数示例：
+        args: UtilParameter实例，
+    一个所需train部分的参数示例：
     args = {
         "max_epoch": 100,
         "snapshot_frequency": 10,
@@ -47,7 +48,7 @@ class TrainEngine(object):
         :param args:
         :param logger:
         """
-        self.args = args
+        self.args = args.get_config(args.TRAIN)
         self.logger = logger
 
         '''
@@ -60,7 +61,9 @@ class TrainEngine(object):
             # 使用 fluid.unique_name.guard() 实现与test program的参数共享
             with fluid.unique_name.guard():
                 self.logger.info("Initializing training neural network...")
-                train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                # train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
+                train_data_loader, train_loss, _, _, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
+                                                                                 is_prediction=False)
                 self.logger.info("Training neural network initialized.")
                 # 获取训练策略
                 self.logger.info("Setting training strategy...")
@@ -86,7 +89,9 @@ class TrainEngine(object):
             # 使用 fluid.unique_name.guard() 实现与train program的参数共享
             with fluid.unique_name.guard():
                 self.logger.info("Initializing validation neural network...")
-                valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
+                # valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
+                valid_data_loader, valid_loss, _, _, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
+                                                                                 is_prediction=False)
                 self.logger.info("Validation neural network initialized.")
 
         valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))
@@ -100,7 +105,7 @@ class TrainEngine(object):
         '''
         过程并行化
         '''
-        USE_PARALLEL = args["use_parallel"]
+        USE_PARALLEL = self.args["use_parallel"]
 
         # 备份原program，因为compiled_program没有保存
         self.origin_train_prog = self.train_main_prog
@@ -132,7 +137,7 @@ class TrainEngine(object):
         EARLY_STOPPING = self.args["early_stopping"]
         if EARLY_STOPPING:
             THRESHOLD = self.args["early_stopping_threshold"]
-            STANDSTILL_STEP = self.args["early_stopping_times"]
+            STANDSTILL_STEP = self.args["early_stopping_stand_times"]
 
         CONTINUE = self.args["continue_train"]
         if CONTINUE:
@@ -184,7 +189,7 @@ class TrainEngine(object):
         total_data = 0
         for data in self.train_data_loader():
             # 为获取字段名，这里需要改
-            batch_size = data[0]['x'].shape()[0]
+            batch_size = data[0]['qas_ids'].shape()[0]
             if batch_size < 2:
                 print("abort batch")
                 continue
@@ -202,7 +207,7 @@ class TrainEngine(object):
         total_loss = 0
         total_data = 0
         for data in self.valid_data_loader():
-            batch_size = data[0]['x'].shape()[0]
+            batch_size = data[0]['qas_ids'].shape()[0]
             if batch_size < 2:
                 print("abort batch")
                 continue

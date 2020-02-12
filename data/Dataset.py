@@ -5,11 +5,12 @@ import math
 
 
 class Dataset:
-    def __init__(self):
+    def __init__(self, logger):
         self.examples = []
         self.train_examples = []
         self.dev_examples = []
         self.test_examples = []
+        self.logger = logger
 
     def __split(self, full_list, ratio):
         """
@@ -84,7 +85,7 @@ class Dataset:
                     qas_id = yesno_example['question_id']
                     count += 1
                     if count % 1000 == 0:
-                        print("has read {} examples".format(count))
+                        self.logger.info("has read {} examples".format(count))
                     # 获取好字段信息后生成example实例写入全局列表中
                     one_example = Example(
                         qas_id=qas_id,
@@ -101,7 +102,7 @@ class Dataset:
         self.train_examples, dev_test = self.__split(self.examples, ration1)
         ration2 = float(nums[1]) / (nums[1] + nums[2])
         self.dev_examples, self.test_examples = self.__split(dev_test, ration2)
-        print("{len1}条训练example，{len2}条验证example，{len3}条测试example"
+        self.logger.info("{len1}条训练example，{len2}条验证example，{len3}条测试example"
               .format(len1=len(self.train_examples), len2=len(self.dev_examples),
                       len3=len(self.test_examples)))
 

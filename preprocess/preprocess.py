@@ -163,7 +163,7 @@ class PreProcess:
 
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
-        src_ids, pos_ids, sent_ids, input_mask = out[0], out[1], out[2], out[3]
+        src_ids, pos_ids, sent_ids, input_masks = out[0], out[1], out[2], out[3]
         qas_ids = []
         labels = []
         temp = {"Yes": 0, "No": 1, "Depends": 2}
@@ -174,7 +174,7 @@ class PreProcess:
         self.features = []
         for i in range(len(self.examples)):
             self.features.append(Feature(
-                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_mask[i], labels[i]
+                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
             ))
 
     def data_generator(self,
@@ -197,11 +197,11 @@ class PreProcess:
             src_ids = [inst[1] for inst in batch_data]
             pos_ids = [inst[2] for inst in batch_data]
             sent_ids = [inst[3] for inst in batch_data]
-            input_mask = [inst[4] for inst in batch_data]
+            input_masks = [inst[4] for inst in batch_data]
             labels = [inst[5] for inst in batch_data]
             qas_ids = np.array(qas_ids).reshape([-1, 1])
             labels = np.array(labels).reshape([-1, 1])
-            return [qas_ids, src_ids, pos_ids, sent_ids, input_mask, labels]
+            return [qas_ids, src_ids, pos_ids, sent_ids, input_masks, labels]
 
         def batch_generator():
             batch_data = []

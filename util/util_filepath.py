@@ -44,21 +44,27 @@ def read_file(file_type, file_name, file_format="json"):
     """
     url = get_fullurl(file_type, file_name, file_format)
 
-    if file_format != "pickle":
-        with open(url, 'r', encoding="utf-8") as f:
-            if file_format == "json":
+    if file_format == "json":
+        try:
+            with open(url, 'r', encoding="utf-8") as f:
                 content = json.load(f)
-            else:
+        except json.decoder.JSONDecodeError:
+            with open(url, 'r', encoding="utf-8") as f:
                 content = []
                 for line in f.readlines():
-                    if file_format == "csv":
-                        item = line.replace('\n', '').split(',')
-                    elif file_format == "tsv":
-                        item = line.replace('\n', '').split('\t')
-                    elif file_format == "txt":
-                        item = line
-                    # print(item)
-                    content.append(item)
+                    content.append(json.loads(line))
+    elif file_format != "pickle":
+        with open(url, 'r', encoding="utf-8") as f:
+            content = []
+            for line in f.readlines():
+                if file_format == "csv":
+                    item = line.replace('\n', '').split(',')
+                elif file_format == "tsv":
+                    item = line.replace('\n', '').split('\t')
+                elif file_format == "txt":
+                    item = line
+                # print(item)
+                content.append(item)
     else:
         with open(url, 'rb') as f:
             content = pickle.load(f)
@@ -75,12 +81,11 @@ def save_file(content, file_type, file_name, file_format="json"):
     if file_format != "pickle":
         with open(url, 'w', encoding='utf-8', newline='') as f:
             if file_format == "json":
-                f.write('[')
                 for line in content:
+                    print(line)
                     jsonstr = json.dumps(line)
                     f.write(jsonstr)
-                    f.write(',')
-                f.write(']')
+                    f.write('\n')
             elif file_format == "csv":
                 writer = csv.writer(f)
                 for line in content:

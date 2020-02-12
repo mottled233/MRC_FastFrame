@@ -1,6 +1,4 @@
 import paddle.fluid as fluid
-import os
-import numpy as np
 from util.model_utils import load_model_params
 from util.util_filepath import get_fullurl
 from engine.train import TrainEngine
@@ -20,7 +18,9 @@ class PredictEngine(object):
         self.predict_startup = fluid.Program()
         self.loader = None
         self.probs = None
+        self.qas_id = ""
         self.probs_list = []
+        self.qas_id_list = []
         self.yesno_list = []
         self.logger = logger
 
@@ -34,7 +34,7 @@ class PredictEngine(object):
         self.exe = fluid.Executor(TrainEngine.get_executor_run_places(self.args))
         with fluid.program_guard(self.predict_program, self.predict_startup):
             # 根据gzl的模型来定义网络，输出占位符
-            self.loader, self.probs = create_model(self.args, True)
+            self.loader, self.probs, self.qas_id = create_model(self.args, True)
             self.logger.info("Prediction neural network created.")
         # start_up程序运行初始参数
         self.exe.run(self.predict_startup)
@@ -65,24 +65,24 @@ class PredictEngine(object):
         self.logger.info("Has get batched data input.")
         # 喂入模型
         for feed_data in self.loader:
-            prob = self.exe.run(self.predict_program,
-                                feed=feed_data,
-                                fetch_list=[self.probs])
+            prob, qas_id = self.exe.run(self.predict_program,
+                                        feed=feed_data,
+                                        fetch_list=[self.probs, self.qas_id])
             self.probs_list.append(prob)
+            self.qas_id_list.append(qas_id)
         self.logger.info("Finish calculate the probs!")
 
-    def generate_result(self, test_examples_list):
+    def generate_result(self):
         """
         后处理的主函数，外部直接调用即可, 最终结果是生成答案写到本地
-        :param test_examples_list: 需传入examples
         :return:
         """
         self.probs_to_yesno()
         self.logger.info("Finish predict the Yesno answer, num of predict examples is {}."
                          .format(len(self.yesno_list)))
-        assert len(self.yesno_list) == len(test_examples_list), \
+        assert len(self.yesno_list) == len(self.qas_id_list), \
             "num of data from generator and num of data from test_examples should be same"
-        self.write_to_json(test_examples_list)
+        self.write_to_json()
         self.logger.info("Finish write data to {}, finish predict process!"
                          .format(get_fullurl("result", "result", "json")))
 
@@ -111,16 +111,14 @@ class PredictEngine(object):
         # TODO 根据examples里面一些特定的文字信息按规则对答案进行后处理修正
         return
 
-    def write_to_json(self, test_examples):
+    def write_to_json(self):
         """
         将结果写入到本地result路径下
-        :param test_examples:
         :return:
         """
         predict_file = get_fullurl("result", "result", "json")
         with open(predict_file, "w", encoding='utf-8') as f:
-            for (i, example) in enumerate(test_examples):
+            for (i, qas_id) in enumerate(self.qas_id_list):
                 yesno_answer = self.yesno_list[i]
-                qas_id = example.qas_id
                 js.dump({"id": qas_id, "yesno_answer": yesno_answer}, f)
                 f.write('\n')

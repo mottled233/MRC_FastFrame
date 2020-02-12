@@ -25,7 +25,7 @@ class UtilLogging:
         self.logger.propagate = False  # 不向root传播，防止重复输出
         self.logger.setLevel(level=logging.DEBUG)  # 设置整体最低层级为debug
 
-        self.stream_handler = logging.StreamHandler()
+        self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
         # formatter: 统一的日志输出格式
         # file_handler: 文件输出
         # stream_handler: 控制台输出
@@ -36,7 +36,7 @@ class UtilLogging:
             self.file_handler.setFormatter(self.formatter)
             self.logger.addHandler(self.file_handler)
         if is_stream:
-            self.formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+            self.stream_handler = logging.StreamHandler()
             self.set_stream_level(2)
             self.stream_handler.setFormatter(self.formatter)
             self.logger.addHandler(self.stream_handler)

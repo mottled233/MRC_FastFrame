@@ -31,7 +31,6 @@ class PreProcess:
 
         self.features = []
 
-
     def get_examples_from_file(self, file_name, file_format="pickle", file_type="example"):
         """
         读取指定文件，返回list of Example结果

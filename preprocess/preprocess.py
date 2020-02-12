@@ -201,6 +201,7 @@ class PreProcess:
 
     def data_generator(self, args):
 
+        """
         def feature_generator():
 
             if self.args["shuffle"]:
@@ -209,6 +210,7 @@ class PreProcess:
                 np.random.shuffle(self.features)
             for feature in self.features:
                 yield feature
+        """
 
         def generate_batch_data(batch_data):
 
@@ -218,20 +220,24 @@ class PreProcess:
             sent_ids = [inst[3] for inst in batch_data]
             input_masks = [inst[4] for inst in batch_data]
             labels = [inst[5] for inst in batch_data]
-            qas_ids = np.array(qas_ids).reshape([-1, 1])
-            labels = np.array(labels).reshape([-1, 1])
+            qas_ids = np.array(qas_ids).astype("int64").reshape([-1, 1])
+            labels = np.array(labels).astype("int64").reshape([-1, 1])
             return [qas_ids, src_ids, pos_ids, sent_ids, input_masks, labels]
 
         def batch_generator():
 
+            if self.args["shuffle"]:
+                if self.args["shuffle_seed"] is not None:
+                    np.random.seed(self.args["shuffle_seed"])
+                np.random.shuffle(self.features)
+
             batch_data = []
-            for feature in feature_generator():
+            for feature in self.features:
                 batch_data.append([
                     feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
                 ])
                 if len(batch_data) == args["batch_size"]:
-                    batch_data = generate_batch_data(batch_data)
-                    yield batch_data
+                    yield generate_batch_data(batch_data)
                     batch_data = []
 
         return batch_generator()

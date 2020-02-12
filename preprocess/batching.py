@@ -126,7 +126,7 @@ def pad_batch_data(batch_tokens,
         # 输入覆盖
         input_mask_data = np.array([[1] * len(inst) + [0] * (max_len - len(inst))
                                     for inst in batch_tokens])
-        input_mask_data = np.expand_dims(input_mask_data, axis=-1)  # 去除最内层的不必要维度
+        input_mask_data = np.expand_dims(input_mask_data, axis=-1)  # 在最内层增加一个维度
         return_list += [input_mask_data.astype("float32")]
 
     '''

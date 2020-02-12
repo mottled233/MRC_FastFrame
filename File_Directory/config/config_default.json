@@ -16,7 +16,7 @@
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
-    "vocab_size":{"type":"int","description":"词表的大小","default":0},
+    "vocab_size":{"type":"int","description":"词表的大小","default":21128},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
     "is_save":{"type":"bool","description":"是否将tokenize后的结果保存下来","default":true},
     "is_mask":{"type":"bool","description":"是否进行mask覆盖","default":false},

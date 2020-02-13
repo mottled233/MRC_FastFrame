@@ -12,7 +12,7 @@ class PredictEngine(object):
         :param args:
         """
         self.exe = None
-        self.param = args
+        self.args_model_build = args.get_config(args.MODEL_BUILD)
         self.args = args.get_config(args.PREDICT)
         self.predict_program = fluid.Program()
         self.predict_startup = fluid.Program()
@@ -35,7 +35,7 @@ class PredictEngine(object):
         self.exe = fluid.Executor(TrainEngine.get_executor_run_places(self.args))
         with fluid.program_guard(self.predict_program, self.predict_startup):
             # 根据gzl的模型来定义网络，输出占位符
-            self.loader, self.probs, self.qas_id = create_model(args=self.param.get_config(self.param.MODEL_BUILD),
+            self.loader, self.probs, self.qas_id = create_model(args=self.args_model_build,
                                                                 vocab_size=vocab_size,
                                                                 is_prediction=True)
             self.logger.info("Prediction neural network created.")

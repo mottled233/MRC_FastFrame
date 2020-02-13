@@ -2,6 +2,7 @@ from data.Example import Example
 import json as js
 import math
 import pickle
+import warnings
 
 
 class Dataset:
@@ -96,6 +97,7 @@ class Dataset:
                         docs=docs,
                         docs_selected=docs_selected)
                     self.examples.append(one_example)
+            file.close()
 
         # 根据输入的比例来分割examples为train，dev，test
         nums = div_nums
@@ -112,6 +114,8 @@ class Dataset:
         获取example_list的接口
         :return:
         """
+        assert len(self.train_examples) + len(self.dev_examples) + len(self.test_examples) > 0, \
+            "don't get any data, maybe you didn't load from any way before!"
         return self.train_examples, self.dev_examples, self.test_examples
 
     def save_example(self):
@@ -120,11 +124,11 @@ class Dataset:
         :return:
         """
         self.logger.info("Saving examples from local path...")
-        with open(self.args["train_examples_path"], "wb") as f:
+        with open(self.args["examples_path"] + "/train.examples", "wb") as f:
             pickle.dump(self.train_examples, f)
-        with open(self.args["dev_examples_path"], "wb") as f:
+        with open(self.args["examples_path"] + "/dev.examples", "wb") as f:
             pickle.dump(self.dev_examples, f)
-        with open(self.args["test_examples_path"], "wb") as f:
+        with open(self.args["examples_path"] + "/test.examples", "wb") as f:
             pickle.dump(self.test_examples, f)
         self.logger.info("Saving examples successful!")
         return
@@ -135,18 +139,15 @@ class Dataset:
         :return:
         """
         self.logger.info("Loading examples to local path...")
-        with open(self.args["train_examples_path"], "rb") as f:
+        with open(self.args["examples_path"] + "/train.examples", "rb") as f:
             self.train_examples = pickle.load(f)
-        with open(self.args["dev_examples_path"], "rb") as f:
+        with open(self.args["examples_path"] + "/dev.examples", "rb") as f:
             self.dev_examples = pickle.load(f)
-        with open(self.args["test_examples_path"], "rb") as f:
-            self.test_examples = pickle.load(f)
+        try:
+            with open(self.args["examples_path"] + "/test.examples", "rb") as f:
+                self.test_examples = pickle.load(f)
+        except Exception:
+            msg = "test_examples file didn't find, so test_examples were not loaded!"
+            warnings.warn(msg, UserWarning)
         self.logger.info("Loading examples successful!")
         return
-
-
-if __name__ == "__main__":
-    dataset = Dataset()
-    dataset.read_dataset()
-    train, dev, test = dataset.get_split()
-    print(train)

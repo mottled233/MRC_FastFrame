@@ -26,8 +26,8 @@ class PreProcess:
         self.args = args
         self.for_prediction = for_prediction
 
-        self.max_seq_length = self.args["max_seq_length"]
         self.examples = examples
+        self.max_seq_length = self.args["max_seq_length"]
 
         # self.logger.info("Prepare to build tokenizer ……")
         self.c_token = CToken(
@@ -152,6 +152,7 @@ class PreProcess:
     def get_tokens(self, file_name, file_format="pickle", file_type="datap"):
         """
         获取tokenize结果并将之储存进指定文件，若文件已存在则直接读取
+        file_name=""表示不进行文件缓存
         """
 
         if file_name != "" and os.path.exists(get_fullurl(file_type, file_name, file_format)):

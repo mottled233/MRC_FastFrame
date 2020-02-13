@@ -52,21 +52,28 @@ def read_file(file_type, file_name, file_format="json"):
                 content = []
                 for line in f.readlines():
                     content.append(json.loads(line))
-    elif file_format != "pickle":
+    elif file_format == "csv":
+        with open(url, 'r', encoding="utf-8") as f:
+            reader = csv.reader(f)
+            content = list(reader)
+    elif file_format == "tsv":
         with open(url, 'r', encoding="utf-8") as f:
             content = []
             for line in f.readlines():
-                if file_format == "csv":
-                    item = line.replace('\n', '').split(',')
-                elif file_format == "tsv":
-                    item = line.replace('\n', '').split('\t')
-                elif file_format == "txt":
-                    item = line
-                # print(item)
+                item = line.replace('\n', '').split('\t')
                 content.append(item)
-    else:
+    elif file_format == "txt":
+        with open(url, 'r', encoding="utf-8") as f:
+            content = []
+            for line in f.readlines():
+                item = str(line)
+                content.append(item)
+    elif file_format == "pickle":
         with open(url, 'rb') as f:
             content = pickle.load(f)
+    else:
+        raise KeyError("Unknown file-type '{}'".format(file_type)) from Exception
+        # 出现未知文件种类，返回错误信息
 
     return content
 
@@ -77,29 +84,34 @@ def save_file(content, file_type, file_name, file_format="json"):
     """
     url = get_fullurl(file_type, file_name, file_format)
 
-    if file_format != "pickle":
+    if file_format == "json":
         with open(url, 'w', encoding='utf-8', newline='') as f:
-            if file_format == "json":
+            if type(content).__name__ == "list":
                 for line in content:
-                    print(line)
-                    jsonstr = json.dumps(line)
-                    f.write(jsonstr)
+                    f.write(json.dumps(line))
                     f.write('\n')
-            elif file_format == "csv":
-                writer = csv.writer(f)
-                for line in content:
-                    writer.writerow(line)
-            elif file_format == "tsv":
-                for line in content:
-                    s = str(line[0])
-                    for i in range(1, len(line)):
-                        s += '\t' + str(line[i])
-                    f.write(s)
-                    f.write('\n')
-            elif file_format == "txt":
-                for line in content:
-                    f.write(line)
-                    f.write('\n')
-    else:
+            else:
+                json.dump(content, f)
+    elif file_format == "csv":
+        with open(url, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(content)
+    elif file_format == "tsv":
+        with open(url, 'w', encoding='utf-8', newline='') as f:
+            for line in content:
+                s = str(line[0])
+                for i in range(1, len(line)):
+                    s += '\t' + str(line[i])
+                f.write(s)
+                f.write('\n')
+    elif file_format == "txt":
+        with open(url, 'w', encoding='utf-8', newline='') as f:
+            for line in content:
+                f.write(str(line))
+                f.write('\n')
+    elif file_format == "pickle":
         with open(url, 'wb') as f:
             pickle.dump(content, f)
+    else:
+        raise KeyError("Unknown file-type '{}'".format(file_type)) from Exception
+        # 出现未知文件种类，返回错误信息

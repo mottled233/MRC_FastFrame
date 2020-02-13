@@ -15,6 +15,7 @@ from model.bert import BertModel
 # 被训练模块和预测模块直接调用
 # 返回相关的计算结果和对应的dataloader对象
 def create_model(args,
+                 vocab_size,
                  is_prediction=False):
 
     # 输入定义
@@ -35,12 +36,14 @@ def create_model(args,
     # 由bert后接一层全连接完成预测任务
 
     # bert部分
+    config = args
+    config['vocab_size'] = vocab_size
     bert = BertModel(
         src_ids=src_ids,
         position_ids=pos_ids,
         sentence_ids=sent_ids,
         input_mask=input_mask,
-        config=args,
+        config=config,
         use_fp16=False)
 
     # 取[CLS]的输出经全连接进行预测

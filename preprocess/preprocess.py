@@ -20,11 +20,12 @@ class Feature(object):
 
 class PreProcess:
 
-    def __init__(self, logger, args, examples):
+    def __init__(self, logger, args, examples, for_prediction=False):
 
         self.logger = logger
-
+        self.for_prediction = for_prediction
         self.args = args
+
         self.max_seq_length = self.args["max_seq_length"]
         self.examples = examples
 
@@ -153,7 +154,7 @@ class PreProcess:
         获取tokenize结果并将之储存进指定文件，若文件已存在则直接读取
         """
 
-        if os.path.exists(get_fullurl(file_type, file_name, file_format)):
+        if file_name != "" and os.path.exists(get_fullurl(file_type, file_name, file_format)):
             self.logger.info("Get tokens from file")
             self.logger.info("File location: " + get_fullurl(file_type, file_name, file_format))
             batch_tokens = read_file(file_type, file_name, file_format)
@@ -167,20 +168,21 @@ class PreProcess:
             self.logger.info("  - Complete tokenizing")
             batch_tokens, _, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
             self.logger.info("  - Complete splicing question and answer")
-            self.save_tokens(batch_tokens, file_name)
-            self.logger.info("  - Complete cache of tokenize results")
-            self.logger.info("    File location: " + "dataset_processed/" + file_name)
+            if file_name != "":
+                self.save_tokens(batch_tokens, file_name)
+                self.logger.info("  - Complete cache of tokenize results")
+                self.logger.info("    File location: " + "dataset_processed/" + file_name)
             self.logger.info("Finish caching")
 
         return batch_tokens, total_token_num
 
-    def prepare_batch_data(self, file_name, file_format="pickle", file_type="datap"):
+    def prepare_batch_data(self, cache_filename="", file_format="pickle", file_type="datap"):
         """
         先从指定文件获取batch_tokens与total_token_num数据
         对给出的batch_tokens进行mask覆盖及填充处理，并返回其他id数据
         """
 
-        batch_tokens, total_token_num = self.get_tokens(file_name, file_format="pickle", file_type="datap")
+        batch_tokens, total_token_num = self.get_tokens(cache_filename, file_format=file_format, file_type=file_type)
 
         self.logger.info("Start data-preprocessing before batching")
 
@@ -196,7 +198,7 @@ class PreProcess:
         temp = {"Yes": 0, "No": 1, "Depends": 2}
         for example in self.examples:
             qas_ids.append(example.qas_id)
-        if not self.args["is_predict"]:
+        if not self.for_prediction:
             for example in self.examples:
                 try:
                     labels.append(temp[example.yes_or_no])
@@ -217,7 +219,7 @@ class PreProcess:
 
     def sample_generator(self):
         self.logger.info("Preprocessing a new round of data of {}".format(len(self.features)))
-        if not self.args["is_predict"]:
+        if not self.for_prediction:
             for feature in self.features:
                 yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
         else:

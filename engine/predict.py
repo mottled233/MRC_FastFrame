@@ -12,7 +12,8 @@ class PredictEngine(object):
         :param args:
         """
         self.exe = None
-        self.args = args
+        self.param = args
+        self.args = args.get_config(args.PREDICT)
         self.predict_program = fluid.Program()
         self.predict_startup = fluid.Program()
         self.loader = None
@@ -23,17 +24,20 @@ class PredictEngine(object):
         self.yesno_list = []
         self.logger = logger
 
-    def init_model(self, model_path):
+    def init_model(self, vocab_size):
         """
         根据模型参数路径读入模型来初始化，包括预测程序编译，模型参数赋值，并行策略
         :param model_path:
         :return:
         """
+        model_path = self.args["model_path"]
         self.logger.info("Initializing predict model...")
         self.exe = fluid.Executor(TrainEngine.get_executor_run_places(self.args))
         with fluid.program_guard(self.predict_program, self.predict_startup):
             # 根据gzl的模型来定义网络，输出占位符
-            self.loader, self.probs, self.qas_id = create_model(self.args, True)
+            self.loader, self.probs, self.qas_id = create_model(args=self.param.get_config(self.param.MODEL_BUILD),
+                                                                vocab_size=vocab_size,
+                                                                is_prediction=True)
             self.logger.info("Prediction neural network created.")
         # start_up程序运行初始参数
         self.exe.run(self.predict_startup)
@@ -72,6 +76,8 @@ class PredictEngine(object):
         # 将numpy数据转化成普通的str和int方便打印到文件中
         self.probs_list = [x.tolist() for x in self.probs_list]
         self.qas_id_list = [int(x[0]) for x in self.qas_id_list]
+        assert len(self.probs_list) == len(self.qas_id_list)
+        self.logger.info("Length of result is {}".format(len(self.probs_list)))
         self.logger.info("Finish calculate the probs!")
 
     def predict_for_one_sample(self, example):

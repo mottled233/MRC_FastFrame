@@ -20,22 +20,14 @@ class Feature(object):
 
 class PreProcess:
 
-    def __init__(self, logger, args, examples=None):
+    def __init__(self, logger, args, examples):
 
         self.logger = logger
 
         self.args = args
         self.max_seq_length = self.args["max_seq_length"]
-        # self.logger.info("Prepare to get examples data ……")
-        if examples is not None:
-            self.file_name = logger.log_name
-            self.examples = examples
-        else:
-            self.file_name = self.args["examples_name"]
-            self.get_examples_from_file(
-                self.args["examples_name"], self.args["examples_format"], self.args["examples_type"]
-            )
-        self.logger.info("Successfully get examples data")
+        self.examples = examples
+
         # self.logger.info("Prepare to build tokenizer ……")
         self.c_token = CToken(
             self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
@@ -51,19 +43,6 @@ class PreProcess:
         """
 
         return len(self.c_token.vocab)
-
-    def get_examples_from_file(self, file_name, file_format="pickle", file_type="example"):
-        """
-        读取指定文件，返回list of Example结果
-        """
-
-        try:
-            self.examples = read_file(file_type, file_name, file_format)
-        except Exception:
-            raise FileNotFoundError("Missing dataset file {}".format(
-                get_fullurl(file_type, file_name, file_format)
-            ))
-            # 未发现数据集文件，返回错误信息
 
     def exams_tokenize(self, examples, token_id=2):
         """
@@ -169,22 +148,39 @@ class PreProcess:
         return prepare_batch_data(insts, max_len, total_token_num, voc_size, pad_id, cls_id, sep_id, mask_id)
     '''
 
-    def prepare_batch_data(self):
+    def get_tokens(self, file_name, file_format="pickle", file_type="datap"):
         """
-        完成数据tokenize操作与缓存，进行句子的填充并返回id数据
+        获取tokenize结果并将之储存进指定文件，若文件已存在则直接读取
+        """
+
+        if os.path.exists(get_fullurl(file_type, file_name, file_format)):
+            self.logger.info("Get tokens from file")
+            self.logger.info("File location: " + get_fullurl(file_type, file_name, file_format))
+            batch_tokens = read_file(file_type, file_name, file_format)
+            total_token_num = 0
+            for sent in batch_tokens:
+                total_token_num += len(sent)
+
+        else:
+            self.logger.info("Start caching output of tokenizing")
+            ques_ids, ans_ids = self.exams_tokenize(self.examples)
+            self.logger.info("  - Complete tokenizing")
+            batch_tokens, _, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
+            self.logger.info("  - Complete splicing question and answer")
+            self.save_tokens(batch_tokens, file_name)
+            self.logger.info("  - Complete cache of tokenize results")
+            self.logger.info("    File location: " + "dataset_processed/" + file_name)
+            self.logger.info("Finish caching")
+
+        return batch_tokens, total_token_num
+
+    def prepare_batch_data(self, batch_tokens, total_token_num):
+        """
+        对给出的batch_tokens进行mask覆盖及填充处理，并返回其他id数据
         """
 
         self.logger.info("Start data-preprocessing before batching")
-        ques_ids, ans_ids = self.exams_tokenize(self.examples)
-        self.logger.info("  - Complete tokenizing")
-        batch_tokens, max_len, total_token_num = self.splice_ques_ans(ques_ids, ans_ids)
-        self.logger.info("  - Complete splicing question and answer")
-        if self.args["is_save"]:
-            # self.save_tokens(ques_ids, file_name + "_ques_processed")
-            # self.save_tokens(ans_ids, file_name + "_ans_processed")
-            self.save_tokens(batch_tokens, self.file_name + "_processed")
-            self.logger.info("  - Complete cache of tokenize results")
-            self.logger.info("    File location: " + "dataset_processed/" + self.file_name + "_processed")
+
         if self.args["is_mask"]:
             batch_tokens, mask_label, mask_pos = self.mask(batch_tokens, self.max_seq_length, total_token_num)
             self.logger.info("  - Complete masking tokens")

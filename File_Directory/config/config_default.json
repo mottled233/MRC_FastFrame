@@ -15,19 +15,14 @@
     "test_examples_path":{"type":"string","description":"划分好的测试集缓存路径","default":"File_Directory/examples/test_examples"},
     "batch_size":{"type":"int","description":"batch的大小","default":32},
     "max_seq_length":{"type":"int","description":"最长序列长度","default":512},
-    "examples_type":{"type":"string","description":"读取examples文件类型","default":"example"},
-    "examples_name":{"type":"string","description":"读取examples文件名","default":""},
-    "examples_format":{"type":"string","description":"读取examples文件格式","default":"pickle"},
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
     "vocab_size":{"type":"int","description":"词表的大小","default":21128},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
-    "is_save":{"type":"bool","description":"是否将tokenize后的结果保存下来","default":true},
     "is_mask":{"type":"bool","description":"是否进行mask覆盖","default":false},
     "is_predict":{"type":"bool","description":"是否为对测试集的处理","default":false},
-    "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true},
-    "shuffle_seed":{"type":"int","description":"打乱examples使用的seed","default":null}
+    "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true}
   },
 "build":{
     "num_labels":{"type":"int","description":"分类的类别数","default":3},

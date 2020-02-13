@@ -21,7 +21,7 @@
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
-    "vocab_size":{"type":"int","description":"词表的大小","default":21128},
+    "vocab_size":{"type":"int","description":"词表的大小","default":30522},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
     "is_save":{"type":"bool","description":"是否将tokenize后的结果保存下来","default":true},
     "is_mask":{"type":"bool","description":"是否进行mask覆盖","default":false},
@@ -36,9 +36,9 @@
     "hidden_size":{"type":"int","description":"embedding后向量的维数","default":768},
     "num_hidden_layers":{"type":"int","description":"内部encoder的层数","default":12},
     "num_attention_heads":{"type":"int","description":"attention_heads的数量","default":12},
-    "hidden_act":{"type":"string","description":"激活函数的名称","default":"relu"},
-    "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0},
-    "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0},
+    "hidden_act":{"type":"string","description":"激活函数的名称","default":"gelu"},
+    "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0.1},
+    "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0.1},
     "initializer_range":{"type":"float","description":"参数随机初始化时的标准差","default":0.02}
   },
 "train":{

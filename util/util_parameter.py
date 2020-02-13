@@ -12,7 +12,7 @@ class UtilParameter:
     part = [GLOBAL, DATASET, MODEL_BUILD, TRAIN, PREDICT]
     # part: 模块划分
 
-    def __init__(self, file_name="config_default", file_format="json"):
+    def __init__(self, file_name="config_default", file_format="json", file_type="config"):
 
         self.config_menu = {}
         self.config = {}
@@ -22,7 +22,7 @@ class UtilParameter:
         # config_menu: 变量目录
         # config: 变量值
 
-        self.read_config_default(file_name, file_format)
+        self.read_config_default(file_name, file_format, file_type)
 
     def read_config_default(self, file_name="config_default", file_format="json", file_type="config"):
         """
@@ -33,12 +33,17 @@ class UtilParameter:
         for part_name in UtilParameter.part:
             self.config[part_name] = {}
         for part_name in self.config_menu.keys():
-            try:
-                for k in self.config_menu[part_name].keys():
-                    self.config[part_name][k] = self.config_menu[part_name][k]["default"]
-            except Exception:
+            if part_name not in UtilParameter.part:
                 raise KeyError("Unknown part-name '{}'".format(str(part_name))) from Exception
                 # 出现未知模块名，返回错误信息
+            for k in self.config_menu[part_name].keys():
+                try:
+                    self.config[part_name][k] = self.config_menu[part_name][k]["default"]
+                except Exception:
+                    raise KeyError(
+                        "Missing default for '{}.{}'".format(str(part_name), str(k))
+                    ) from Exception
+                    # 出现参数定义文件缺少默认值，返回错误信息
 
     def read_config_file(self, file_name, file_format="json", file_type="config"):
         """
@@ -47,16 +52,27 @@ class UtilParameter:
 
         config_new = read_file(file_type, file_name, file_format)
         for part_name in config_new.keys():
-            try:
-                for k in config_new[part_name].keys():
-                    if k not in self.config_menu[part_name].keys():
-                        self.config_menu[part_name][k] = config_new[part_name][k]
-                        self.config[part_name][k] = self.config_menu[part_name][k]["default"]
-                    else:
-                        self.config[part_name][k] = config_new[part_name][k]
-            except Exception:
+            if part_name not in UtilParameter.part:
                 raise KeyError("Unknown part-name '{}'".format(str(part_name))) from Exception
                 # 出现未知模块名，返回错误信息
+            for k in config_new[part_name].keys():
+                if k not in self.config_menu[part_name].keys():
+                    try:
+                        self.config_menu[part_name][k] = config_new[part_name][k]
+                        self.config[part_name][k] = self.config_menu[part_name][k]["default"]
+                    except Exception:
+                        raise KeyError(
+                            "Wrong definition for '{}.{}'".format(str(part_name), str(k))
+                        ) from Exception
+                        # 出现配置文件定义参数格式错误，返回错误信息
+                else:
+                    if type(config_new[part_name][k]).__name__ != "dict":
+                        self.config[part_name][k] = config_new[part_name][k]
+                    else:
+                        raise KeyError(
+                            "Wrong assignment for '{}.{}'".format(str(part_name), str(k))
+                        ) from Exception
+                        # 出现配置文件参数赋值格式错误，返回错误信息
 
     def set_config(self, argv):
         """
@@ -91,7 +107,7 @@ class UtilParameter:
                     raise Exception("Unknown parameter '{}'".format(str(option)))
                     # 发现不存在该变量，返回错误信息
                 elif num > 1:
-                    raise Exception("One more parameters named '{}'",format(str(option)))
+                    raise Exception("One more parameters named '{}'".format(str(option)))
                     # 发现存在同名变量，返回错误信息
             else:
                 part_name = opt[0]
@@ -99,7 +115,9 @@ class UtilParameter:
                 try:
                     self.config[part_name][option] = value
                 except Exception:
-                    raise KeyError("Unknown parameter '{}'".format(str(option))) from Exception
+                    raise KeyError(
+                        "Unknown parameter '{}.{}'".format(str(part_name), str(option))
+                    ) from Exception
                     # 发现不存在该变量，返回错误信息
 
     def get_config(self, part_name):

@@ -23,8 +23,8 @@ class PreProcess:
     def __init__(self, logger, args, examples, for_prediction=False):
 
         self.logger = logger
-        self.for_prediction = for_prediction
         self.args = args
+        self.for_prediction = for_prediction
 
         self.max_seq_length = self.args["max_seq_length"]
         self.examples = examples

@@ -119,14 +119,14 @@ class Dataset:
         保存example_list的缓存
         :return:
         """
-        self.logger.info("Loading examples from local path...")
+        self.logger.info("Saving examples from local path...")
         with open(self.args["train_examples_path"], "wb") as f:
             pickle.dump(self.train_examples, f)
         with open(self.args["dev_examples_path"], "wb") as f:
             pickle.dump(self.dev_examples, f)
         with open(self.args["test_examples_path"], "wb") as f:
             pickle.dump(self.test_examples, f)
-        self.logger.info("Loading examples successful!")
+        self.logger.info("Saving examples successful!")
         return
 
     def load_examples(self):
@@ -134,14 +134,14 @@ class Dataset:
         读取example_list的缓存
         :return:
         """
-        self.logger.info("Saving examples to local path...")
+        self.logger.info("Loading examples to local path...")
         with open(self.args["train_examples_path"], "rb") as f:
             self.train_examples = pickle.load(f)
         with open(self.args["dev_examples_path"], "rb") as f:
             self.dev_examples = pickle.load(f)
         with open(self.args["test_examples_path"], "rb") as f:
             self.test_examples = pickle.load(f)
-        self.logger.info("Saving examples successful!")
+        self.logger.info("Loading examples successful!")
         return
 
 

@@ -2,6 +2,7 @@ import paddle
 import paddle.fluid as fluid
 import numpy as np
 import time
+import sys
 from preprocess.preprocess import PreProcess as PrePro
 from engine.train import TrainEngine as TrainEngine
 from data.Dataset import Dataset
@@ -22,6 +23,7 @@ def fake_sample_generator():
 
 if __name__ == "__main__":
     param = UParam()
+    param.set_config(sys.argv[1:])
     logger = ULog(param)
     # args = {
     #     "max_epoch": 100,
@@ -49,25 +51,28 @@ if __name__ == "__main__":
     # }
     # datasets_path = args["datasets_path"]
 
-    datasets = Dataset(logger)
- #   datasets.read_dataset(div_nums=[7, 2, 1])
+    datasets = Dataset(logger=logger, args=param.get_config(param.DATASET))
+    # datasets.read_dataset(div_nums=[7, 2, 1])
 
     datasets.load_examples()
     trainset, validset, testset = datasets.get_split()  # 这三个函数要修改，split应该检查是否已分割
     # datasets.save_example()
     print(trainset[0])
-    train_preprocess = PreProcess(logger, param.get_config(param.DATASET), examples=trainset)
+    train_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=trainset)
     train_preprocess.prepare_batch_data()
+    train_vocab_size = train_preprocess.get_vocab_size()
     train_batch_reader = train_preprocess.batch_generator()
 
-    valid_preprocess = PreProcess(logger, param.get_config(param.DATASET), examples=validset)
+    valid_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset)
     valid_preprocess.prepare_batch_data()
+    valid_vocab_size = valid_preprocess.get_vocab_size()
     valid_batch_reader = valid_preprocess.batch_generator()
     # test_preprocess = PreProcess(trainset)
     # test_batch_reader = test_preprocess.batch_generator()
     #
 
-    train_engine = TrainEngine(train_batch_reader, valid_batch_reader, param, logger)
+    train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
+                               args=param, logger=logger)
     t1 = time.time()
     train_engine.train()
     t2 = time.time()

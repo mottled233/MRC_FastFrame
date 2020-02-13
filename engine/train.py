@@ -40,7 +40,7 @@ class TrainEngine(object):
     }
 
     """
-    def __init__(self, train_data_reader, valid_data_reader, args, logger):
+    def __init__(self, train_data_reader, train_vocab_size, valid_data_reader, valid_vocab_size, args, logger):
         """
         对训练过程进行初始化
         :param train_data_reader:
@@ -63,6 +63,7 @@ class TrainEngine(object):
                 self.logger.info("Initializing training neural network...")
                 # train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
                 train_data_loader, train_loss, _, _, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
+                                                                                 vocab_size=train_vocab_size,
                                                                                  is_prediction=False)
                 self.logger.info("Training neural network initialized.")
                 # 获取训练策略
@@ -90,7 +91,8 @@ class TrainEngine(object):
             with fluid.unique_name.guard():
                 self.logger.info("Initializing validation neural network...")
                 # valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
-                valid_data_loader, valid_loss, _, _, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
+                valid_data_loader, valid_loss, _, accuracy, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
+                                                                                 vocab_size=valid_vocab_size,
                                                                                  is_prediction=False)
                 self.logger.info("Validation neural network initialized.")
 
@@ -98,6 +100,7 @@ class TrainEngine(object):
 
         self.valid_data_loader = valid_data_loader
         self.valid_loss = valid_loss
+        self.valid_accuracy = accuracy
         # 对训练状态的记录
         self.pre_epoch_valid_loss = float("inf")
         self.standstill_count = 0
@@ -157,15 +160,16 @@ class TrainEngine(object):
         elif PRETRAIN_MODEL != "":
             # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
             model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=PRETRAIN_MODEL)
-            self.logger.info("Pre-trained model file in {} has been loaded".format(MODEL_PATH))
+            self.logger.info("Pre-trained model file in {} has been loaded".format(PRETRAIN_MODEL))
 
+        self.logger.info("Ready to train the model.Executing...")
         # 执行MAX_EPOCH次迭代
         for epoch_id in range(MAX_EPOCH):
             # 一个epoch的训练过程，一个迭代
             loss = self.__run_train_iterable(executor)
             self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
             # 进行一次验证集上的验证
-            valid_loss = self.valid(executor)
+            valid_loss, valid_acc = self.__valid(executor)
             self.logger.info(' Epoch {epoch} Validated, valid mean loss is {loss}'.format(epoch=epoch_id, loss=valid_loss))
             # 进行保存
             if epoch_id % SNAPSHOT_FREQUENCY == 0:
@@ -185,38 +189,55 @@ class TrainEngine(object):
         """
         对训练过程的一个epoch的执行
         """
+        PRINT_PER_STEP = self.args["print_per_step"]
+        USE_PARALLEL = self.args["use_parallel"]
+        NUM_OF_DEVICE = self.args["num_of_device"]
+
         total_loss = 0
         total_data = 0
-        for data in self.train_data_loader():
+        for step, data in enumerate(self.train_data_loader()):
             # 为获取字段名，这里需要改
             batch_size = data[0]['qas_ids'].shape()[0]
-            if batch_size < 2:
-                print("abort batch")
+            if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
+                self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
             loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
             total_loss += loss_value[0]
             total_data += 1
+            if PRINT_PER_STEP > 0:
+                if step % PRINT_PER_STEP == 0:
+                    self.logger.info("Step {step} in epoch: loss = {loss}".format(step=step, loss=loss_value))
         mean_loss = total_loss / total_data
         return mean_loss
 
-    def valid(self, exe):
+    def __valid(self, exe):
         """
             对验证过程的一个epoch的执行
         """
+        PRINT_PER_STEP = self.args["print_per_step"]
+        USE_PARALLEL = self.args["use_parallel"]
+        NUM_OF_DEVICE = self.args["num_of_device"]
 
         total_loss = 0
+        total_accuracy = 0
         total_data = 0
-        for data in self.valid_data_loader():
+        for step, data in enumerate(self.valid_data_loader()):
             batch_size = data[0]['qas_ids'].shape()[0]
-            if batch_size < 2:
-                print("abort batch")
+            if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
+                self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
-            loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss])
+            loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss,
+                                                                                      self.valid_accuracy])
             total_loss += loss_value[0]
+            total_accuracy += loss_value[1]
             total_data += 1
+            if PRINT_PER_STEP > 0:
+                if step % PRINT_PER_STEP == 0:
+                    self.logger.info("Step {step} in epoch: loss = {loss}".format(step=step, loss=total_loss/PRINT_PER_STEP))
         mean_loss = total_loss / total_data
-        print('train mean loss is {}'.format(mean_loss))
-        return mean_loss
+        mean_accuracy = total_accuracy / total_data
+        self.logger.info('train mean loss is {loss}, mean accuracy is {acc}'.format(loss=mean_loss, acc=mean_accuracy))
+        return mean_loss, mean_accuracy
 
     @staticmethod
     def get_data_run_places(args):

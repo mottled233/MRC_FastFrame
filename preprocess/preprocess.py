@@ -174,10 +174,13 @@ class PreProcess:
 
         return batch_tokens, total_token_num
 
-    def prepare_batch_data(self, batch_tokens, total_token_num):
+    def prepare_batch_data(self, file_name, file_format="pickle", file_type="datap"):
         """
+        先从指定文件获取batch_tokens与total_token_num数据
         对给出的batch_tokens进行mask覆盖及填充处理，并返回其他id数据
         """
+
+        batch_tokens, total_token_num = self.get_tokens(file_name, file_format="pickle", file_type="datap")
 
         self.logger.info("Start data-preprocessing before batching")
 

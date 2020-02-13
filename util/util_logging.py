@@ -8,10 +8,10 @@ class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
 
-    def __init__(self, u_param, is_file=True, is_stream=True, output_config=True):
+    def __init__(self, params, is_file=True, is_stream=True, output_config=True):
         """
-        选择是否写入文件与输出到控制台
-        :param u_param: 参数数据
+        获取参数并记录到文件中，并选择是否写入文件与输出到控制台
+        :param params: 参数数据
         :param is_file: 是否输出到文件
         :param is_stream: 是否输出到控制台
         :param output_config: 是否保存参数配置文件
@@ -42,24 +42,24 @@ class UtilLogging:
             self.logger.addHandler(self.stream_handler)
 
         if output_config:
-            self.log_config(u_param)
+            self.log_config(params)
 
-    def log_config(self, u_param):
+    def log_config(self, params):
         """
         初始化日志文件，并写入参数表
         """
 
         content = []
-        for part_name in u_param.part:
+        for part_name in params.part:
             content.append(part_name)
-            for k in u_param.config[part_name]:
+            for k in params.config[part_name]:
                 content.append("|---" + k + ':')
-                content.append("    |---type: " + str(u_param.config_menu[part_name][k]["type"]))
-                content.append("    |---description: " + str(u_param.config_menu[part_name][k]["description"]))
-                content.append("    |---value: " + str(u_param.config[part_name][k]))
+                content.append("    |---type: " + str(params.config_menu[part_name][k]["type"]))
+                content.append("    |---description: " + str(params.config_menu[part_name][k]["description"]))
+                content.append("    |---value: " + str(params.config[part_name][k]))
             content.append('')
         # 输出全部参数信息
-        jsonstr = json.dumps(u_param.config)
+        jsonstr = json.dumps(params.config)
         content.append(jsonstr)
         # 输出可进行使用的json格式参数配置
         content.append('\n\n')

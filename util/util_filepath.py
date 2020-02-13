@@ -4,7 +4,7 @@ import csv
 import pickle
 
 root = os.path.abspath("")
-folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/result",
+folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/results",
           "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}
 suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": "", "": ""}
 # root: 根目录

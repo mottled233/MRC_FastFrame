@@ -74,6 +74,34 @@ class UtilParameter:
                         ) from Exception
                         # 出现配置文件参数赋值格式错误，返回错误信息
 
+    def get_value(self, type, value):
+        """
+        根据变量类型将字符串整理为合适的变量值
+        """
+
+        if type == "string":
+            return value
+        elif type == "int":
+            try:
+                return int(value)
+            except ValueError:
+                return None
+        elif type == "float":
+            try:
+                return float(value)
+            except ValueError:
+                return None
+        elif type == "bool":
+            value = value.lower()
+            if value == "true":
+                return True
+            elif value == "false":
+                return False
+            else:
+                return None
+        else:
+            raise Exception("Unknown variable type in definition")
+
     def set_config(self, argv):
         """
         录入从命令行获取的参数值，只处理长格式
@@ -102,7 +130,14 @@ class UtilParameter:
                 for part_name in UtilParameter.part:
                     if option in self.config_menu[part_name].keys():
                         num += 1
-                        self.config[part_name][option] = value
+                        val = self.get_value(self.config_menu[part_name][option]["type"], value)
+                        if val is None:
+                            raise KeyError(
+                                "Wrong assignment for '{}.{}'".format(str(part_name), str(k))
+                            ) from Exception
+                            # 出现错误的变量类型，返回错误信息
+                        else:
+                            self.config[part_name][option] = val
                 if num == 0:
                     raise Exception("Unknown parameter '{}'".format(str(option)))
                     # 发现不存在该变量，返回错误信息
@@ -113,7 +148,14 @@ class UtilParameter:
                 part_name = opt[0]
                 option = opt[1]
                 try:
-                    self.config[part_name][option] = value
+                    val = self.get_value(self.config_menu[part_name][option]["type"], value)
+                    if val is None:
+                        raise KeyError(
+                            "Wrong assignment for '{}.{}'".format(str(part_name), str(k))
+                        ) from Exception
+                        # 出现错误的变量类型，返回错误信息
+                    else:
+                        self.config[part_name][option] = val
                 except Exception:
                     raise KeyError(
                         "Unknown parameter '{}.{}'".format(str(part_name), str(option))

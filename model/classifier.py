@@ -9,6 +9,7 @@ from __future__ import print_function
 import paddle.fluid as fluid
 
 from model.bert import BertModel
+from model.capsLayer import CapsLayer
 
 
 # 搭建分类模型
@@ -17,7 +18,6 @@ from model.bert import BertModel
 def create_model(args,
                  vocab_size,
                  is_prediction=False):
-
     # 输入定义
     qas_ids = fluid.data(name='qas_ids', dtype='int64', shape=[-1, 1])
     src_ids = fluid.data(name='src_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
@@ -46,20 +46,45 @@ def create_model(args,
         config=config,
         use_fp16=False)
 
-    # 取[CLS]的输出经全连接进行预测
-    cls_feats = bert.get_pooled_output()
-    cls_feats = fluid.layers.dropout(
-        x=cls_feats,
-        dropout_prob=0.1,
-        dropout_implementation="upscale_in_train")
-    logits = fluid.layers.fc(
-        input=cls_feats,
-        size=args['num_labels'],
-        param_attr=fluid.ParamAttr(
-            name="cls_out_w",
-            initializer=fluid.initializer.TruncatedNormal(scale=0.02)),
-        bias_attr=fluid.ParamAttr(
-            name="cls_out_b", initializer=fluid.initializer.Constant(0.)))
+    mrc_layer = config['mrc_layer']
+
+    logits = None
+    if mrc_layer == "cls_fc":
+        # 取[CLS]的输出经全连接进行预测
+        cls_feats = bert.get_pooled_output()
+        cls_feats = fluid.layers.dropout(
+            x=cls_feats,
+            dropout_prob=0.1,
+            dropout_implementation="upscale_in_train")
+        logits = fluid.layers.fc(
+            input=cls_feats,
+            size=args['num_labels'],
+            param_attr=fluid.ParamAttr(
+                name="cls_out_w",
+                initializer=fluid.initializer.TruncatedNormal(scale=0.02)),
+            bias_attr=fluid.ParamAttr(
+                name="cls_out_b", initializer=fluid.initializer.Constant(0.)))
+    elif mrc_layer == "capsNet":
+        # 取完整的bert_output，输入胶囊网络
+        bert_output = bert.get_sequence_output()
+        param_attr = fluid.ParamAttr(name='conv2d.weight', initializer=fluid.
+                                     initializer.Xavier(uniform=False),
+                                     learning_rate=0.001)
+        bert_output = fluid.layers.unsqueeze(input=bert_output, axes=[1])
+        capsules = fluid.layers.conv2d(input=bert_output, num_filters=256, filter_size=32, stride=15,
+                                       padding="VALID", act="relu", param_attr=param_attr)
+        # (batch_size, 256, 33, 50)
+        primaryCaps = CapsLayer(num_outputs=32, vec_len=8, with_routing=False, layer_type='CONV')
+        caps1 = primaryCaps(capsules, kernel_size=9, stride=2)
+        # (batch_size, 8736, 8, 1)
+        classifierCaps = CapsLayer(num_outputs=args['num_labels'], vec_len=16, with_routing=True, layer_type='FC')
+        caps2 = classifierCaps(caps1)
+        # (batch_size, 3, 16, 1)
+
+        epsilon = 1e-9
+        v_length = fluid.layers.sqrt(fluid.layers.reduce_sum(fluid.layers.square(caps2),
+                                                             -2, keep_dim=True) + epsilon)
+        logits = fluid.layers.squeeze(v_length, axes=[2, 3])
 
     # 根据任务返回不同的结果
     # 预测任务仅返回dataloader和预测出的每个label对应的概率

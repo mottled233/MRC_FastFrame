@@ -18,6 +18,10 @@ from model.capsLayer import CapsLayer
 def create_model(args,
                  vocab_size,
                  is_prediction=False):
+    # 处理词典大小
+    if args['vocab_size'] > 0:
+        vocab_size = args['vocab_size']
+
     # 输入定义
     qas_ids = fluid.data(name='qas_ids', dtype='int64', shape=[-1, 1])
     src_ids = fluid.data(name='src_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])

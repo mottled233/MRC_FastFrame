@@ -15,6 +15,7 @@ from util.util_logging import UtilLogging as ULog
 if __name__ == "__main__":
     # 设置参数
     param = UParam()
+    param.read_config_file("config")
     param.set_config(sys.argv[1:])
     # 初始化日志
     logger = ULog(param)
@@ -22,7 +23,6 @@ if __name__ == "__main__":
     # 读取数据集
     datasets = Dataset(logger=logger, args=param.get_config(param.DATASET))
     # datasets.read_dataset(div_nums=[7, 2, 1])
-
     datasets.load_examples()
     trainset, validset, testset = datasets.get_split()  # 这三个函数要修改，split应该检查是否已分割
     # datasets.save_example()
@@ -45,15 +45,15 @@ if __name__ == "__main__":
     predict_batch_reader = predict_preprocess.batch_generator()
 
     # 训练过程
-    # train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
-    #                            args=param, logger=logger)
-    # t1 = time.time()
-    # train_engine.train()
-    # t2 = time.time()
-    # print(t2-t1)
+    train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
+                               args=param, logger=logger)
+    t1 = time.time()
+    train_engine.train()
+    t2 = time.time()
+    print(t2-t1)
 
     # 预测过程
-    predict_engine = PredictEngine(args=param, logger=logger)
-    predict_engine.init_model(vocab_size=predict_vocab_size)
-    predict_engine.predict(predict_batch_reader)
+    # predict_engine = PredictEngine(args=param, logger=logger)
+    # predict_engine.init_model(vocab_size=predict_vocab_size)
+    # predict_engine.predict(predict_batch_reader)
 

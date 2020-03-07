@@ -1,9 +1,10 @@
 {"global":{
+    "app_name": {"type":"string","description":"用于定义本次运行的名称，保存日志、模型会参照该名称","default":""},
     "load_model_path":{"type":"string","description":"当继续训练时，指定模型路径","default":""},
     "use_parallel":{"type":"bool","description":"是否并行运行训练/测试","default":false},
     "use_gpu":{"type":"bool","description":"是否使用gpu","default":true},
     "num_of_device":{"type":"int","description":"使用的设备数","default":1},
-    "model_path":{"type":"string","description":"预测使用模型路径","default":"File_Directory/models/2020-02-13_12-22-22"},
+    "model_path":{"type":"string","description":"预测使用模型路径","default":""},
     "batch_size":{"type":"int","description":"batch的大小","default":32}
   },
 "dataset":{
@@ -18,12 +19,13 @@
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
-    "vocab_size":{"type":"int","description":"词表的大小","default":30522},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
     "is_mask":{"type":"bool","description":"是否进行mask覆盖","default":false},
     "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true}
   },
 "build":{
+    "pretrained_model_type": {"type":"string","description":"预训练模型选用哪个","default":"bert"},
+    "vocab_size": {"type":"int","description":"当不为-1时，将优先于程序计算的实际vocab size","default":-1},
     "num_labels":{"type":"int","description":"分类的类别数","default":3},
     "use_fp16":{"type":"bool","description":"是否使用浮点16位","default":false},
     "type_vocab_size":{"type":"int","description":"sententce_type的类型数","default":2},
@@ -59,7 +61,7 @@
     "adam_epsilon":{"type":"float","description":"保持数值稳定性的短浮点类型值","default":1e-08},
     "snapshot_frequency":{"type":"int", "description":"每隔多少epoch保存一次训练快照", "default":10},
     "continue_train":{"type":"bool","description":"是否是接上一次训练，若为true必须指定load_model_path","default":false},
-    "pretrained_model_path":{"type":"string", "description":"当是第一次训练时，指定预训练模型", "default":"/gs/home/lianghx/gzl/pretrain_model/base/params"},
+    "pretrained_model_path":{"type":"string", "description":"当是第一次训练时，指定预训练模型", "default":"File_Directory/pretrained/params"},
     "print_per_step":{"type":"int", "description":"每隔多少步打印一次信息，若小于1则不打印", "default": 10}
 },
 "predict": {

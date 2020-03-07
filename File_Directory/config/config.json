@@ -1,12 +1,15 @@
 {
   "global": {
-
+    "app_name": "ernie_base_run"
   },
   "dataset": {
-
+    "vocab_name": "vocab_ernie",
+    "max_seq_length": 513
   },
   "build": {
-
+    "pretrained_model_type": "ernie",
+    "hidden_act": "relu",
+    "vocab_size": 18000
   },
   "train": {
 

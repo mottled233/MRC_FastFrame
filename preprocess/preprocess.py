@@ -59,12 +59,13 @@ class PreProcess:
         for example in examples:
             q_tokens = self.c_token.tokenize(example.question)
             ques_tokens.append(q_tokens)
-            q_ids = self.c_token.convert_tokens_to_ids(q_tokens)
-            ques_ids.append(q_ids)
             a_tokens = self.c_token.tokenize(example.answer)
             ans_tokens.append(a_tokens)
-            a_ids = self.c_token.convert_tokens_to_ids(a_tokens)
-            ans_ids.append(a_ids)
+            if token_id == 2:
+                q_ids = self.c_token.convert_tokens_to_ids(q_tokens)
+                ques_ids.append(q_ids)
+                a_ids = self.c_token.convert_tokens_to_ids(a_tokens)
+                ans_ids.append(a_ids)
         if token_id == 1:
             return ques_tokens, ans_tokens
         elif token_id == 2:
@@ -81,14 +82,16 @@ class PreProcess:
         """
         对问题张量和答案张量进行拼接，并返回句子最大长度与单个token总数的信息
         """
+        vocab = self.c_token.vocab
         if special_char is None:
-            special_char = {"CLS": 1, "SEP": 2, "MASK": 3}
+            special_char = {"CLS": vocab["[CLS]"], "SEP": vocab["[SEP]"],
+                            "MASK": vocab["[MASK]"], "PAD": vocab["[PAD]"]}
 
         l1 = len(ques_ids)
         l2 = len(ans_ids)
         if l1 != l2:
-            raise Exception("Different number of Questions and Answers")
             # 发现问题答案数量不匹配，返回错误信息
+            raise Exception("Different number of Questions and Answers")
         batch_tokens = []
         max_len = 0
         total_token_num = 0
@@ -106,8 +109,10 @@ class PreProcess:
         """
         进行mask覆盖，返回覆盖后的结果和覆盖信息
         """
+        vocab = self.c_token.vocab
         if special_char is None:
-            special_char = {"CLS": 1, "SEP": 2, "MASK": 3}
+            special_char = {"CLS": vocab["[CLS]"], "SEP": vocab["[SEP]"],
+                            "MASK": vocab["[MASK]"], "PAD": vocab["[PAD]"]}
 
         vocab_size = len(self.c_token.vocab)
         return mask(batch_tokens, max_len, total_token_num, vocab_size, special_char)

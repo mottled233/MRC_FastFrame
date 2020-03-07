@@ -94,6 +94,7 @@ src_id, pos_id, segment_id, input_mask
 
 训练模块的主要功能是接受主程序所提供的相关参数、数据生成器和构建好的模型，制定训练策略，完成训练，并使用验证数据对模型效果进行验证，最后将模型保存。使用方法如下：
 
+预训练模型下载：https://bert-models.bj.bcebos.com/chinese_L-12_H-768_A-12.tar.gz
 ```python
 # 创建训练引擎
 train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, \ valid_vocab_size,args=param, logger=logger)

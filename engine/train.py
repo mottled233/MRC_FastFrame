@@ -8,7 +8,6 @@ import util.model_utils as model_utils
 import model.optimizer
 import model.lr_stategy as lr_strategy
 import model.classifier as classifier
-from model.network_test import network as network
 
 
 class TrainEngine(object):

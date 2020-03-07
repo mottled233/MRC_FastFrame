@@ -7,6 +7,7 @@ from util.util_parameter import *
 class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}
+    LOG_NAME = "MRC_logger"
 
     def __init__(self, params, is_file=True, is_stream=True, output_config=True):
         """
@@ -18,7 +19,9 @@ class UtilLogging:
         """
 
         present_time = datetime.datetime.now()
-        self.log_name = datetime.datetime.strftime(present_time, '%Y-%m-%d %H-%M-%S')
+        app_name = params.get_config(params.GLOBAL)["app_name"]
+        self.log_name = self.LOG_NAME
+        self.rec_name = app_name + "_" + datetime.datetime.strftime(present_time, '%Y-%m-%d %H-%M-%S')
         # 用当前时间为本次日志命名
 
         self.logger = logging.getLogger(self.log_name)
@@ -31,7 +34,7 @@ class UtilLogging:
         # stream_handler: 控制台输出
 
         if is_file:
-            self.file_handler = logging.FileHandler(get_fullurl("log", self.log_name, "txt"))
+            self.file_handler = logging.FileHandler(get_fullurl("log", self.rec_name, "txt"))
             self.set_file_level(2)
             self.file_handler.setFormatter(self.formatter)
             self.logger.addHandler(self.file_handler)
@@ -63,7 +66,7 @@ class UtilLogging:
         content.append(jsonstr)
         # 输出可进行使用的json格式参数配置
         content.append('\n\n')
-        save_file(content, "log", self.log_name + " config", 'txt')
+        save_file(content, "log", self.rec_name + " config", 'txt')
 
     def log_input(self, level, message, pos=None):
         """

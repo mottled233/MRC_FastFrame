@@ -5,10 +5,10 @@ import time
 import os
 
 
-def save_train_snapshot(executor, program, file_path=""):
+def save_train_snapshot(executor, program, file_name="", file_path=""):
     if file_path == "":
         name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
-        file_path = file_utils.get_fullurl("model", name, "pickle")
+        file_path = file_utils.get_fullurl("model", file_name + name, "pickle")
 
     io.save_persistables(executor=executor, dirname=file_path, main_program=program)
     return file_path
@@ -19,10 +19,10 @@ def load_train_snapshot(executor, program, file_path):
     io.load_persistables(executor=executor, dirname=file_path, main_program=program)
 
 
-def save_model_as_whole(program, file_path=""):
+def save_model_as_whole(program, file_name="", file_path=""):
     if file_path == "":
         name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
-        file_path = file_utils.get_fullurl("model", name, "pickle")
+        file_path = file_utils.get_fullurl("model", file_name + name, "pickle")
 
     io.save(program, file_path)
     return file_path
@@ -39,7 +39,10 @@ def load_model_params(exe, params_path, program):
     def existed_params(var):
         if not isinstance(var, fluid.framework.Parameter):
             return False
-        return os.path.exists(os.path.join(params_path, var.name))
+        if os.path.exists(os.path.join(params_path, var.name)):
+            return True
+        print("missing layer: {}".format(var.name))
+        return False
 
     io.load_vars(exe, params_path, main_program=program, predicate=existed_params)
 

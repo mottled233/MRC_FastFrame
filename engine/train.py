@@ -133,6 +133,7 @@ class TrainEngine(object):
         用于训练流程，根据参数完成训练，并使用验证数据对模型效果进行验证
         :return: 无
         """
+        APP_NAME = self.args["app_name"]
         MAX_EPOCH = self.args["max_epoch"]
         SNAPSHOT_FREQUENCY = self.args["snapshot_frequency"]
 
@@ -172,7 +173,7 @@ class TrainEngine(object):
             self.logger.info(' Epoch {epoch} Validated, valid mean loss is {loss}'.format(epoch=epoch_id, loss=valid_loss))
             # 进行保存
             if epoch_id % SNAPSHOT_FREQUENCY == 0:
-                file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
+                file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog, APP_NAME)
                 self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
             # 应用早停策略
             if EARLY_STOPPING:
@@ -181,7 +182,7 @@ class TrainEngine(object):
                     self.logger.info("Performance improvement stalled, ending the training process")
                     break
         # 保存现有模型
-        file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog)
+        file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog, APP_NAME)
         self.logger.info("Training process completed. model saved in {}".format(file_path))
 
     def __run_train_iterable(self, executor):

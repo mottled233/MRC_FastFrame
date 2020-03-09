@@ -267,13 +267,6 @@ class WordpieceTokenizer(object):
         :return: list of str，token列表，若存在多个短语则依次排列
         """
 
-        punctuation = {
-            '‘': '\'', '’': '\'', '“': '\"', '”': '\"',
-            '–': '-', '—': '-', '―': '-',
-            '…': ' ', '`': ' ',
-            '⑹': "6", '㏄': "cc"
-        }
-
         output_tokens = []
 
         text = convert_to_unicode(text)
@@ -303,10 +296,8 @@ class WordpieceTokenizer(object):
                 sub_tokens.append(cur_substr)
                 start = end
             if is_bad:
-                if "".join(chars) in punctuation.keys():
-                    output_tokens.append(punctuation["".join(chars)])
-                else:
-                    output_tokens.append(self.unk_token)
+                # print("".join(chars))
+                output_tokens.append(self.unk_token)
             else:
                 output_tokens.extend(sub_tokens)
 

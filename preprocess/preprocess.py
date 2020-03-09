@@ -83,6 +83,7 @@ class PreProcess:
         """
         对问题张量和答案张量进行拼接，并返回句子最大长度与单个token总数的信息
         """
+
         vocab = self.c_token.vocab
         if special_char is None:
             special_char = {"CLS": vocab["[CLS]"], "SEP": vocab["[SEP]"],
@@ -91,8 +92,8 @@ class PreProcess:
         l1 = len(ques_ids)
         l2 = len(ans_ids)
         if l1 != l2:
-            # 发现问题答案数量不匹配，返回错误信息
             raise Exception("Different number of Questions and Answers")
+            # 发现问题答案数量不匹配，返回错误信息
         batch_tokens = []
         max_len = 0
         total_token_num = 0
@@ -110,6 +111,7 @@ class PreProcess:
         """
         进行mask覆盖，返回覆盖后的结果和覆盖信息
         """
+
         vocab = self.c_token.vocab
         if special_char is None:
             special_char = {"CLS": vocab["[CLS]"], "SEP": vocab["[SEP]"],
@@ -123,7 +125,7 @@ class PreProcess:
                        max_len,
                        pad_idx=0,
                        return_pos=False,
-                       return_sent=False, sep_id=2,
+                       return_sent=False, sep_id=None,
                        return_input_mask=False,
                        # return_max_len=False,
                        # return_num_token=False
@@ -132,6 +134,8 @@ class PreProcess:
         将句子统一填充到最大句子长度，并生成相应的位置数据和输入覆盖
         """
 
+        if sep_id is None:
+            sep_id = self.c_token.vocab["[SEP]"]
         return pad_batch_data(batch_tokens, max_len, pad_idx, return_pos, return_sent, sep_id, return_input_mask)
 
     '''

@@ -102,6 +102,7 @@ def get_piecewise_decay_lr(args):
 
     return fluid.layers.piecewise_decay(boundaries=BOUND, values=LR)
 
+
 def get_linear_warmup_decay(args):
     """
     线性地将linear做升降变化，作为客制化修改的模板

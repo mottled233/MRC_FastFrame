@@ -153,31 +153,47 @@ class TrainEngine(object):
         # 执行初始化
         executor.run(self.train_startup_prog)
 
+        total_step = 0
+        step_in_epoch = 0
+        total_epoch = 0
         # 读取模型现有的参数并为继续训练进行相应处理
         if CONTINUE:
-            model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
+            info = model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
             self.logger.info("Model file in {} has been loaded".format(MODEL_PATH))
+            if info:
+                total_step == info.get("total_step", 0)
+                step_in_epoch = info.get("step_in_epoch", 0)
+                total_epoch = info.get("epoch", 0)
         elif PRETRAIN_MODEL != "":
             # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
             model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=PRETRAIN_MODEL)
             self.logger.info("Pre-trained model file in {} has been loaded".format(PRETRAIN_MODEL))
 
         self.logger.info("Ready to train the model.Executing...")
-        # 执行MAX_EPOCH次迭代
+
+        # 执行MAX_EPOCH次迭代save_train_snapshot
         for epoch_id in range(MAX_EPOCH):
+            if epoch_id == 0:
+                epoch_id += total_epoch
             # 一个epoch的训练过程，一个迭代
-            loss = self.__run_train_iterable(executor)
+            total_step, loss = self.__run_train_iterable(executor, total_step, epoch_id, step_in_epoch)
+            step_in_epoch = 0
             self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
             # 进行一次验证集上的验证
             valid_loss, valid_acc = self.__valid(executor)
             self.logger.info(' Epoch {epoch} Validated, valid mean loss is {loss}'.format(epoch=epoch_id, loss=valid_loss))
             # 进行保存
-            if epoch_id % SNAPSHOT_FREQUENCY == 0:
-                file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog, APP_NAME)
-                self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
+            info = {
+                "total_step": total_step,
+                "epoch": epoch_id
+            }
+            file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog,
+                                                        file_name="{}_epoch{}".format(APP_NAME, epoch_id),
+                                                        train_info=info)
+            self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
             # 应用早停策略
             if EARLY_STOPPING:
-                need_stop = self.early_stopping_strategy(valid_loss, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
+                need_stop = self.early_stopping_strategy(-valid_acc, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
                 if need_stop:
                     self.logger.info("Performance improvement stalled, ending the training process")
                     break
@@ -185,18 +201,22 @@ class TrainEngine(object):
         file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog, APP_NAME)
         self.logger.info("Training process completed. model saved in {}".format(file_path))
 
-    def __run_train_iterable(self, executor):
+    def __run_train_iterable(self, executor, total_step=0, epoch=0, step_in_epoch=0):
         """
         对训练过程的一个epoch的执行
         """
         PRINT_PER_STEP = self.args["print_per_step"]
         USE_PARALLEL = self.args["use_parallel"]
         NUM_OF_DEVICE = self.args["num_of_device"]
+        APP_NAME = self.args["app_name"]
+        SNAPSHOT_FREQUENCY = self.args["snapshot_frequency"]
 
         total_loss = 0
         total_data = 0
         for step, data in enumerate(self.train_data_loader()):
             # 为获取字段名，这里需要改
+            if step <= step_in_epoch:
+                continue
             batch_size = data[0]['qas_ids'].shape()[0]
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
                 self.logger.warning("Batch size less than the number of devices. Batch aborted.")
@@ -204,11 +224,23 @@ class TrainEngine(object):
             loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
             total_loss += loss_value[0]
             total_data += 1
+            # 打印逻辑
             if PRINT_PER_STEP > 0:
                 if step % PRINT_PER_STEP == 0:
-                    self.logger.info("Step {step} in epoch: loss = {loss}".format(step=step, loss=loss_value))
+                    self.logger.info("Step {step}: loss = {loss}".
+                                     format(step=total_step+step, loss=loss_value))
+            # 保存逻辑
+            info = {
+                "total_step": total_step,
+                "step_in_epoch": step,
+                "epoch": epoch
+            }
+            if step % SNAPSHOT_FREQUENCY == 0 and step != 0:
+                file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog,
+                                                            "{}_step{}".format(APP_NAME, total_step+step), info)
+                self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
         mean_loss = total_loss / total_data
-        return mean_loss
+        return total_step + step, mean_loss
 
     def __valid(self, exe):
         """
@@ -233,10 +265,10 @@ class TrainEngine(object):
             total_data += 1
             if PRINT_PER_STEP > 0:
                 if step % PRINT_PER_STEP == 0:
-                    self.logger.info("Step {step} in epoch: loss = {loss}".format(step=step, loss=total_loss/PRINT_PER_STEP))
+                    self.logger.info("Valid batch {step} in epoch: loss = {loss}".format(step=step, loss=total_loss/total_data))
         mean_loss = total_loss / total_data
         mean_accuracy = total_accuracy / total_data
-        self.logger.info('train mean loss is {loss}, mean accuracy is {acc}'.format(loss=mean_loss, acc=mean_accuracy))
+        self.logger.info('valid mean loss is {loss}, mean accuracy is {acc}'.format(loss=mean_loss, acc=mean_accuracy))
         return mean_loss, mean_accuracy
 
     @staticmethod
@@ -287,6 +319,7 @@ class TrainEngine(object):
         current_valid_loss = np.sum(current_valid_loss)
         promote = self.pre_epoch_valid_loss - current_valid_loss
         promote_rate = promote / np.abs(self.pre_epoch_valid_loss)
+        self.logger.info("This epoch promote performance by {}".format(promote_rate))
         if promote_rate < threshold:
             self.standstill_count += 1
             if self.standstill_count > standstill_step:

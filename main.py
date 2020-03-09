@@ -17,8 +17,11 @@ if __name__ == "__main__":
     param = UParam()
     param.read_config_file("config")
     param.set_config(sys.argv[1:])
+    args = param.get_config(param.GLOBAL)
     # 初始化日志
     logger = ULog(param)
+
+    app_name = args["app_name"]
 
     # 读取数据集
     datasets = Dataset(logger=logger, args=param.get_config(param.DATASET))

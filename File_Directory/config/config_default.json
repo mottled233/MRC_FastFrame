@@ -9,7 +9,6 @@
   },
 "dataset":{
     "dataset_path":{"type":"string","description":"数据集路径","default":"File_Directory/dataset"},
-    "examples_path":{"type":"string","description":"examples缓存路径","default":"File_Directory/examples"},
     "train_file_path_zhidao":{"type":"string","description":"zhidao数据集路径","default":"File_Directory/dataset/zhidao.train.json"},
     "train_file_path_search":{"type":"string","description":"search数据集路径","default":"File_Directory/dataset/search.train.json"},
     "train_examples_path":{"type":"string","description":"划分好的训练集缓存路径","default":"File_Directory/examples/train.examples"},
@@ -42,7 +41,7 @@
     "max_epoch":{"type":"int","description":"最大训练epoch","default":20},
     "early_stopping":{"type":"bool","description":"是否采用早停策略","default":true},
     "early_stopping_threshold":{"type":"float","description":"性能增长比例小于阈值被判断为停滞","default":0.03},
-    "early_stopping_stand_times":{"type":"int","description":"连续停滞超过几次停止训练","default":10},
+    "early_stopping_stand_times":{"type":"int","description":"连续停滞超过几次停止训练","default":5},
     "base_learning_rate":{"type":"float","description":"基础学习率","default":0.0001},
     "learning_rate_strategy":{"type":"string","description":"学习率变化策略","default":"fixed"},
     "optimizer":{"type":"string","description":"优化器选择","default":"sgd"},
@@ -59,7 +58,7 @@
     "adam_beta1":{"type":"float","description":"一阶矩估计的指数衰减率","default":0.9},
     "adam_beta2":{"type":"float","description":"二阶矩估计的指数衰减率","default":0.999},
     "adam_epsilon":{"type":"float","description":"保持数值稳定性的短浮点类型值","default":1e-08},
-    "snapshot_frequency":{"type":"int", "description":"每隔多少epoch保存一次训练快照", "default":10},
+    "snapshot_frequency":{"type":"int", "description":"每隔多少step保存一次训练快照", "default":500},
     "continue_train":{"type":"bool","description":"是否是接上一次训练，若为true必须指定load_model_path","default":false},
     "pretrained_model_path":{"type":"string", "description":"当是第一次训练时，指定预训练模型", "default":"File_Directory/pretrained/params"},
     "print_per_step":{"type":"int", "description":"每隔多少步打印一次信息，若小于1则不打印", "default": 10}

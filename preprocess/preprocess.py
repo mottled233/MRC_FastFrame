@@ -4,6 +4,7 @@ from util.util_filepath import *
 from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
 from preprocess.batching import *
+import random
 
 
 class Feature(object):
@@ -225,6 +226,8 @@ class PreProcess:
 
     def sample_generator(self):
         self.logger.info("Preprocessing a new round of data of {}".format(len(self.features)))
+        if self.args["shuffle"]:
+            random.shuffle(self.features)
         if not self.for_prediction:
             for feature in self.features:
                 yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
@@ -234,6 +237,4 @@ class PreProcess:
 
     def batch_generator(self):
         reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])
-        if self.args["shuffle"]:
-            reader = fluid.io.shuffle(reader, buf_size=2*self.args["batch_size"])
         return reader

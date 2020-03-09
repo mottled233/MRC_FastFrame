@@ -5,11 +5,11 @@ import time
 import os
 
 
-def save_train_snapshot(executor, program, file_name="", file_path=""):
-    if file_path == "":
-        name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
-        file_path = file_utils.get_fullurl("model", file_name + name, "pickle")
-
+def save_train_snapshot(executor, program, file_name="", train_info={}):
+    name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
+    file_name = file_name + "_" + name
+    file_path = file_utils.get_fullurl("model", file_name, "pickle")
+    file_utils.save_file(content=train_info, file_type="model", file_name=file_name, file_format="json")
     io.save_persistables(executor=executor, dirname=file_path, main_program=program)
     return file_path
 
@@ -17,6 +17,10 @@ def save_train_snapshot(executor, program, file_name="", file_path=""):
 def load_train_snapshot(executor, program, file_path):
     assert os.path.exists(file_path), "[%s] cann't be found." % file_path
     io.load_persistables(executor=executor, dirname=file_path, main_program=program)
+    if os.path.exists(file_path + ".json"):
+        info = file_utils.read_file(file_path + ".json", file_format="json")
+        return info
+    return False
 
 
 def save_model_as_whole(program, file_name="", file_path=""):

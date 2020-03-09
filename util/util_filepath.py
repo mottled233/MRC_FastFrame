@@ -37,11 +37,15 @@ def get_fullurl(file_type, file_name, file_format="json"):
     return url
 
 
-def read_file(file_type, file_name, file_format="json"):
+def read_file(file_type="", file_name="", file_format="json"):
     """
     对指定文件进行读取操作，自动调用路径生成
     """
-    url = get_fullurl(file_type, file_name, file_format)
+    assert(file_name != "", "File name required")
+    if file_type != "":
+        url = get_fullurl(file_type, file_name, file_format)
+    else:
+        url = file_name
 
     if file_format == "json":
         try:

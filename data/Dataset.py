@@ -124,11 +124,11 @@ class Dataset:
         :return:
         """
         self.logger.info("Saving examples from local path...")
-        with open(self.args["examples_path"] + "/train.examples", "wb") as f:
+        with open(self.args["train_examples_path"], "wb") as f:
             pickle.dump(self.train_examples, f)
-        with open(self.args["examples_path"] + "/dev.examples", "wb") as f:
+        with open(self.args["dev_examples_path"], "wb") as f:
             pickle.dump(self.dev_examples, f)
-        with open(self.args["examples_path"] + "/test.examples", "wb") as f:
+        with open(self.args["test_examples_path"], "wb") as f:
             pickle.dump(self.test_examples, f)
         self.logger.info("Saving examples successful!")
         return
@@ -139,12 +139,12 @@ class Dataset:
         :return:
         """
         self.logger.info("Loading examples to local path...")
-        with open(self.args["examples_path"] + "/train.examples", "rb") as f:
+        with open(self.args["train_examples_path"], "rb") as f:
             self.train_examples = pickle.load(f)
-        with open(self.args["examples_path"] + "/dev.examples", "rb") as f:
+        with open(self.args["dev_examples_path"], "rb") as f:
             self.dev_examples = pickle.load(f)
         try:
-            with open(self.args["examples_path"] + "/test.examples", "rb") as f:
+            with open(self.args["test_examples_path"], "rb") as f:
                 self.test_examples = pickle.load(f)
         except Exception:
             msg = "test_examples file didn't find, so test_examples were not loaded!"

@@ -15,7 +15,7 @@ from util.util_logging import UtilLogging as ULog
 if __name__ == "__main__":
     # 设置参数
     param = UParam()
-    param.read_config_file("config")
+    param.read_config_file("config_ernie")
     param.set_config(sys.argv[1:])
     args = param.get_config(param.GLOBAL)
     # 初始化日志
@@ -32,16 +32,16 @@ if __name__ == "__main__":
 
     # 训练数据预处理
     train_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=trainset)
-    train_preprocess.prepare_batch_data(cache_filename="train_features")
+    train_preprocess.prepare_batch_data()
     train_vocab_size = train_preprocess.get_vocab_size()
     train_batch_reader = train_preprocess.batch_generator()
     # 验证数据预处理
     valid_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset)
-    valid_preprocess.prepare_batch_data(cache_filename="valid_features")
+    valid_preprocess.prepare_batch_data()
     valid_vocab_size = valid_preprocess.get_vocab_size()
     valid_batch_reader = valid_preprocess.batch_generator()
     # 预测数据预处理
-    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
+    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset,
                                     for_prediction=True)
     predict_preprocess.prepare_batch_data(cache_filename="")
     predict_vocab_size = predict_preprocess.get_vocab_size()
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     print(t2-t1)
 
     # 预测过程
-    # predict_engine = PredictEngine(args=param, logger=logger)
+    predict_engine = PredictEngine(args=param, logger=logger)
     # predict_engine.init_model(vocab_size=predict_vocab_size)
-    # predict_engine.predict(predict_batch_reader)
+    predict_engine.predict(predict_batch_reader)
 

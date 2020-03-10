@@ -173,9 +173,7 @@ class TrainEngine(object):
         self.logger.info("Ready to train the model.Executing...")
 
         # 执行MAX_EPOCH次迭代save_train_snapshot
-        for epoch_id in range(MAX_EPOCH):
-            if epoch_id == 0:
-                epoch_id += total_epoch
+        for epoch_id in range(total_epoch+1, MAX_EPOCH):
             # 一个epoch的训练过程，一个迭代
             total_step, loss = self.__run_train_iterable(executor, total_step, epoch_id, step_in_epoch)
             step_in_epoch = 0

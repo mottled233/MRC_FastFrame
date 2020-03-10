@@ -1,9 +1,9 @@
 {
   "global": {
-    "app_name": "ernie_base_run",
+    "app_name": "ernie_base_run_iter2",
     "use_parallel": false,
     "num_of_device": 1,
-    "load_model_path": "File_Directory/models/ernie_base_run_epoch0_2020-03-09_00-52-33"
+    "load_model_path": "File_Directory/models/ernie_base_run_iter2_epoch9_2020-03-10_10-14-29"
   },
   "dataset": {
     "vocab_name": "vocab_ernie",
@@ -15,9 +15,10 @@
     "vocab_size": 18000
   },
   "train": {
-    "base_learning_rate": 1e-7,
-    "learning_rate_strategy": "fixed",
-    "optimizer": "adam",
+    "base_learning_rate": 1e-6,
+    "learning_rate_strategy": "noam_worm_up_and_decay",
+    "warm_up_step": 3000,
+    "optimizer": "sgd",
     "continue_train": true
 
   },

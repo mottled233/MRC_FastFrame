@@ -18,7 +18,7 @@ def load_train_snapshot(executor, program, file_path):
     assert os.path.exists(file_path), "[%s] cann't be found." % file_path
     io.load_persistables(executor=executor, dirname=file_path, main_program=program)
     if os.path.exists(file_path + ".json"):
-        info = file_utils.read_file(file_path + ".json", file_format="json")
+        info = file_utils.read_file(file_name=file_path + ".json", file_format="json")
         return info
     return False
 

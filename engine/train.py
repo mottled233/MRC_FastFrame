@@ -161,9 +161,10 @@ class TrainEngine(object):
             info = model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
             self.logger.info("Model file in {} has been loaded".format(MODEL_PATH))
             if info:
-                total_step == info.get("total_step", 0)
+                total_step = info.get("total_step", 0)
                 step_in_epoch = info.get("step_in_epoch", 0)
                 total_epoch = info.get("epoch", 0)
+                self.logger.info("Load train info: {}".format(info))
         elif PRETRAIN_MODEL != "":
             # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
             model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=PRETRAIN_MODEL)

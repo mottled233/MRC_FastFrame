@@ -1,60 +1,91 @@
 import paddle.fluid as fluid
+import numpy as np
+
 from util.model_utils import load_model_params
 from engine.train import TrainEngine
 from model.classifier import create_model
-import json as js
+import util.util_filepath as file_utils
 
 
 class PredictEngine(object):
-    def __init__(self, args, logger):
+    def __init__(self, param, logger, vocab_size,
+                 prob_postprocess=lambda x: x,
+                 yesno_postprocess=lambda x: x):
         """
-        定义参数
-        :param args:
+        预测引擎
+        :param param: 参数实体
+        :param logger: 日志
+        :param prob_postprocess:
         """
         self.exe = None
-        self.args_model_build = args.get_config(args.MODEL_BUILD)
-        self.args = args.get_config(args.PREDICT)
+        self.args_model_build = param.get_config(param.MODEL_BUILD)
+        self.args = param.get_config(param.PREDICT)
+        self.logger = logger
         self.predict_program = fluid.Program()
         self.predict_startup = fluid.Program()
-        self.loader = None
-        self.probs = None
-        self.qas_id = ""
+        self.vocab_size = vocab_size
+
+        self.loader, self.probs, self.qas_id = self.init_model(vocab_size)
+
         self.probs_list = []
         self.qas_id_list = []
         self.yesno_list = []
+        self.prob_postprocess_op = prob_postprocess
+        self.yesno_postprocess_op = yesno_postprocess
+        self.answer_list = ["Yes", "No", "Depends"]
         self.logger = logger
 
     def init_model(self, vocab_size):
         """
         根据模型参数路径读入模型来初始化，包括预测程序编译，模型参数赋值，并行策略
-        :param model_path:
+        :param vocab_size: 词典大小
         :return:
         """
-        model_path = self.args["model_path"]
+        model_path = self.args["load_model_path"]
         self.logger.info("Initializing predict model...")
         self.exe = fluid.Executor(TrainEngine.get_executor_run_places(self.args))
         with fluid.program_guard(self.predict_program, self.predict_startup):
             # 根据gzl的模型来定义网络，输出占位符
-            self.loader, self.probs, self.qas_id = create_model(args=self.args_model_build,
-                                                                vocab_size=vocab_size,
-                                                                is_prediction=True)
+            loader, probs, qas_id = create_model(args=self.args_model_build, vocab_size=vocab_size,
+                                                 is_prediction=True)
             self.logger.info("Prediction neural network created.")
+
+        self.logger.info("Prediction neural network parameter initialized.")
+
         # start_up程序运行初始参数
         self.exe.run(self.predict_startup)
+
         # 加载模型参数到网络中
         load_model_params(self.exe, model_path, self.predict_program)
-        self.logger.info("Prediction neural network parameter initialized.")
+
         # 若并行，用并行编译program
         if self.args["use_parallel"]:
-            buildStrategy = fluid.BuildStrategy()
+            build_strategy = fluid.BuildStrategy()
             # 并行策略暂时写死
-            buildStrategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
+            build_strategy.reduce_strategy = fluid.BuildStrategy.ReduceStrategy.Reduce
             self.predict_program = fluid.CompiledProgram(self.predict_program). \
                 with_data_parallel(places=TrainEngine.get_data_run_places(self.args),
-                                   build_strategy=buildStrategy)
-        self.logger.info("Finish initializing predict model!")
+                                   build_strategy=build_strategy)
 
-    def predict(self, data_generator):
+        self.logger.info("Finish initializing predict model!")
+        return loader, probs, qas_id
+
+    def predict(self, data_generator, data_examples=[]):
+        """
+        一个完整的默认配置的预测流程
+        :param data_generator: 传入batch化的数据生成器
+        :param data_examples: 原始数据
+        """
+        # 预测
+        self._predict(data_generator)
+        # 概率后处理
+        # self.prob_postprocess(self.prob_postprocess_op, data_examples)
+        # 概率转答案
+        self.probs_to_yesno()
+        # 答案后处理
+        # self.yesno_postprocess(self.yesno_postprocess_op, data_examples)
+
+    def _predict(self, data_generator):
         """
         预测功能，根据生成器预测pros，将pros填充到probs_list中
         :param data_generator: 传入batch化的数据生成器
@@ -67,12 +98,14 @@ class PredictEngine(object):
                                               places=TrainEngine.get_data_run_places(self.args))
         self.logger.info("Has get batched data input.")
         # 喂入模型
-        for feed_data in self.loader():
+        for step, feed_data in enumerate(self.loader()):
             probs_batch, qas_id_batch = self.exe.run(self.predict_program,
                                                      feed=feed_data,
                                                      fetch_list=[self.probs, self.qas_id])
             self.probs_list.extend(probs_batch)
             self.qas_id_list.extend(qas_id_batch)
+            if step % 10 == 0:
+                self.logger.info("Step {} finshed".format(step))
         # 将numpy数据转化成普通的str和int方便打印到文件中
         self.probs_list = [x.tolist() for x in self.probs_list]
         self.qas_id_list = [int(x[0]) for x in self.qas_id_list]
@@ -84,52 +117,78 @@ class PredictEngine(object):
         # TODO 预测一个样例
         return
 
-    def generate_result(self):
-        """
-        后处理的主函数，外部直接调用即可, 最终结果是生成答案写到本地
-        :return:
-        """
-        self.probs_to_yesno()
-        self.logger.info("Finish predict the Yesno answer, num of predict examples is {}."
-                         .format(len(self.yesno_list)))
-        assert len(self.yesno_list) == len(self.qas_id_list), \
-            "num of data from generator and num of data from test_examples should be same"
-        self.write_to_json()
-        self.logger.info("Finish write data to {}, finish predict process!"
-                         .format(self.args["result_file_path"]))
-
-    def probs_reprocess(self, op):
+    def prob_postprocess(self, op, examples=[]):
         """
         传入一个函数对概率矩阵进行后处理操作，如适当增大Depends小类的概率等
         :param op:
         :return:
         """
+        self.logger.info("Start postprocess probs...")
         self.probs_list = list(map(op, self.probs_list))
+        self.logger.info("Finish postprocess probs")
+
+    def yesno_postprocess(self, op, examples=[]):
+        self.logger.info("Start postprocess answer...")
+        self.answer_list = list(map(op, self.answer_list))
+        self.logger.info("Finish postprocess answer")
 
     def probs_to_yesno(self):
         """
         将概率矩阵转化为是否类答案列表
         :return:
         """
-        answer_list = ["Yes", "No", "Depends"]
+        self.logger.info("Start transform probs to yesno answer...")
+
         answers = []
         for probs in self.probs_list:
             max_index = probs.index(max(probs))
-            answers.append(answer_list[max_index])
+            answers.append(self.answer_list[max_index])
         self.yesno_list = answers
 
-    def yesno_reprocess(self, test_examples):
-        # TODO 根据examples里面一些特定的文字信息按规则对答案进行后处理修正
-        return
+        assert (len(self.yesno_list) == len(self.qas_id_list),
+                "num of data from generator and num of data from test_examples should be same")
+        self.logger.info("Finish predict the Yesno answer, num of predict examples is {}."
+                         .format(len(self.yesno_list)))
 
-    def write_to_json(self):
+    def write_to_json(self, headers=("id", "yesno_answer"), attach_data={}):
         """
-        将结果写入到本地result路径下
+
+        :param headers:  要写入的表头，必须在data_dict是定义好的
+        :param attach_data: 附加的信息，也按表头：数据的形式。注意长度必须与预测结果列表一致
+        :return: 保存文件路径
+        """
+        data_dict = {"id": self.qas_id_list,
+                     "yesno_answer": self.yesno_list}
+        attach_data_len = len(self.qas_id_list)
+        for key in attach_data:
+            assert(attach_data_len == len(attach_data[key]), "Length of attach data must be equal to result list.")
+        data_dict.update(attach_data)
+
+        predict_file = file_utils.get_default_filename(self.args)
+        result_list = []
+        result_len = len(self.qas_id_list)
+        for i in range(result_len):
+            record = {}
+            for key in data_dict:
+                record[key] = data_dict[key][i]
+            result_list.append(record)
+
+        return file_utils.save_file(result_list, file_name=predict_file, file_type="result", file_format="json")
+
+    def write_full_info(self, attach_data={}):
+        """
+        将预测的结果以完整形式（包括概率）写入csv
         :return:
         """
-        predict_file = self.args["result_file_path"]
-        with open(predict_file, "w", encoding='utf-8') as f:
-            for (i, qas_id) in enumerate(self.qas_id_list):
-                yesno_answer = self.yesno_list[i]
-                js.dump({"id": qas_id, "yesno_answer": yesno_answer}, f)
-                f.write('\n')
+        probs_list = np.array(self.probs_list)
+        print(probs_list)
+        attach = {}
+        for i in range(probs_list.shape[1]):
+            attach[self.answer_list[i]] = probs_list[:, i]
+
+        attach.update(attach_data)
+        return self.write_to_json(attach_data=attach)
+
+
+
+

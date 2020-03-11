@@ -2,6 +2,7 @@ import os
 import json
 import csv
 import pickle
+import time
 
 root = os.path.abspath("")
 folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/results",
@@ -35,6 +36,15 @@ def get_fullurl(file_type, file_name, file_format="json"):
         raise KeyError("Intractable file-format '{}'".format(file_format)) from Exception
         # 出现不可处理的文件格式，返回错误信息
     return url
+
+
+def get_default_filename(args, with_time=True):
+    app_name = args.get('app_name', "")
+    if app_name == "":
+        app_name = "unnamed_app"
+    if with_time:
+        app_name + "_" + time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
+    return app_name
 
 
 def read_file(file_type="", file_name="", file_format="json"):
@@ -119,3 +129,6 @@ def save_file(content, file_type, file_name, file_format="json"):
     else:
         raise KeyError("Unknown file-type '{}'".format(file_type)) from Exception
         # 出现未知文件种类，返回错误信息
+
+    return url
+

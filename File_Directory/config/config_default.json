@@ -64,6 +64,5 @@
     "print_per_step":{"type":"int", "description":"每隔多少步打印一次信息，若小于1则不打印", "default": 10}
 },
 "predict": {
-    "result_file_path":{"type":"string","description":"预测结果地址","default":"File_Directory/result/result.json"}
   }
 }

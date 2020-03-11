@@ -15,6 +15,7 @@
     "dev_examples_path":{"type":"string","description":"划分好的验证集缓存路径","default":"File_Directory/examples/dev.examples"},
     "test_examples_path":{"type":"string","description":"划分好的测试集缓存路径","default":"File_Directory/examples/test.examples"},
     "max_seq_length":{"type":"int","description":"最长序列长度","default":512},
+    "is_ernie":{"type":"bool","description":"是否为针对ernie字典的处理","default":true},
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},

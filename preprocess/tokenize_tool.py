@@ -296,7 +296,13 @@ class WordpieceTokenizer(object):
                 sub_tokens.append(cur_substr)
                 start = end
             if is_bad:
-                # print("".join(chars))
+                '''
+                str_ = "".join(chars)
+                str_ = str_.replace("\\", "\\\\")
+                str_ = str_.replace("\"", "\\\"")
+                str_ = str_.replace("\'", "\\\'")
+                print(str_, end=" ")
+                '''
                 output_tokens.append(self.unk_token)
             else:
                 output_tokens.extend(sub_tokens)

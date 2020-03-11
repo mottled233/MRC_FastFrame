@@ -4,6 +4,7 @@ from util.util_filepath import *
 from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
 from preprocess.batching import *
+from preprocess.util_preprocess import *
 import random
 
 
@@ -37,6 +38,13 @@ class PreProcess:
         self.logger.info("Successfully build tokenizer")
         # 使用指定的字典，构建tokenizer
 
+        self.func(half_width)
+        self.func(lower)
+        if self.args["is_ernie"]:
+            self.func(punctuation_replace_for_ernie)
+            self.func(translate_for_ernie)
+        self.func(split_unk, self.c_token.vocab)
+
         self.features = []
 
     def get_vocab_size(self):
@@ -45,6 +53,20 @@ class PreProcess:
         """
 
         return len(self.c_token.vocab)
+
+    def func(self, util_func, vocab=None):
+        """
+        对question和answer的文本信息进行整理
+        """
+
+        if vocab is None:
+            for i in range(len(self.examples)):
+                self.examples[i].question = util_func(self.examples[i].question)
+                self.examples[i].answer = util_func(self.examples[i].answer)
+        else:
+            for i in range(len(self.examples)):
+                self.examples[i].question = util_func(self.examples[i].question, vocab)
+                self.examples[i].answer = util_func(self.examples[i].answer, vocab)
 
     def exams_tokenize(self, examples, token_id=2):
         """

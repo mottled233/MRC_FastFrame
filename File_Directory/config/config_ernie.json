@@ -1,26 +1,30 @@
 {
   "global": {
-    "app_name": "ernie_base_run_iter2",
-    "use_parallel": false,
-    "num_of_device": 1,
-    "load_model_path": "File_Directory/models/ernie_base_run_iter2_epoch9_2020-03-10_10-14-29"
+    "app_name": "oov_continue_without_l2",
+    "pretrained_model_type": "ernie",
+    "use_parallel": true,
+    "use_gpu": true,
+    "num_of_device": 2,
+    "load_model_path": "File_Directory/models/ernie_base_with_replace_oov_epoch9_2020-03-12_02-04-35"
   },
   "dataset": {
     "vocab_name": "vocab_ernie",
-    "max_seq_length": 513
+    "max_seq_length": 513,
+    "shuffle": true
   },
   "build": {
-    "pretrained_model_type": "ernie",
     "hidden_act": "relu",
     "vocab_size": 18000
   },
   "train": {
-    "base_learning_rate": 1e-6,
+    "base_learning_rate": 2e-6,
     "learning_rate_strategy": "noam_worm_up_and_decay",
-    "warm_up_step": 3000,
-    "optimizer": "sgd",
+    "warm_up_step": 2760,
+    "optimizer": "adam",
+    "continue_train": false,
+    "regularization": "",
+    "regularization_coeff": 0.01,
     "continue_train": true
-
   },
   "predict": {
 

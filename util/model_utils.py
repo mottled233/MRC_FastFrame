@@ -101,3 +101,20 @@ def save_model(model_path, feeded_var_names, target_vars, exe):
     """
     assert os.path.exists(model_path), "[%s] can't be found." % model_path
     io.save_inference_model(model_path, feeded_var_names, target_vars, exe)
+
+
+def cast_fp32_to_fp16(exe, main_program):
+    """
+    将fp32的模型转换为fp16
+    """
+    print("Cast parameters to float16 data format.")
+    for param in main_program.global_block().all_parameters():
+        if not param.name.endswith(".master"):
+            param_t = fluid.global_scope().find_var(param.name).get_tensor()
+            data = np.array(param_t)
+            if param.name.find("layer_norm") == -1:
+                param_t.set(np.float16(data).view(np.uint16), exe.place)
+            master_param_var = fluid.global_scope().find_var(param.name +
+                                                             ".master")
+            if master_param_var is not None:
+                master_param_var.get_tensor().set(data, exe.place)

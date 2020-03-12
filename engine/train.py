@@ -67,9 +67,30 @@ class TrainEngine(object):
                 self.logger.info("Training neural network initialized.")
                 # 获取训练策略
                 self.logger.info("Setting training strategy...")
+
                 learning_rate = lr_strategy.get_strategy(self.args)
-                optimizer = model.optimizer.get_optimizer(learning_rate, self.args, regularization=None)
-                optimizer.minimize(train_loss)
+                optimizer = model.optimizer.get_optimizer(learning_rate, self.args)
+
+                if self.args['regularization'] == "L2":
+                    # L2正则
+                    param_list = dict()
+                    for param in self.train_main_prog.global_block().all_parameters():
+                        param_list[param.name] = param * 1.0
+                        param_list[param.name].stop_gradient = True
+
+                    _, param_grads = optimizer.minimize(train_loss)
+
+                    if self.args['regularization_coeff'] > 0:
+                        for param, grad in param_grads:
+                            if self._exclude_from_weight_decay(param.name):
+                                continue
+                            with param.block.program._optimized_guard(
+                                    [param, grad]), fluid.framework.name_scope("weight_decay"):
+                                updated_param = param - param_list[
+                                    param.name] * self.args['regularization_coeff'] * learning_rate
+                                fluid.layers.assign(output=param, input=updated_param)
+                else:
+                    optimizer.minimize(train_loss)
                 self.logger.info("Training strategy has been set.")
 
         # 为训练过程设置数据集
@@ -90,9 +111,10 @@ class TrainEngine(object):
             with fluid.unique_name.guard():
                 self.logger.info("Initializing validation neural network...")
                 # valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
-                valid_data_loader, valid_loss, _, accuracy, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
-                                                                                 vocab_size=valid_vocab_size,
-                                                                                 is_prediction=False)
+                valid_data_loader, valid_loss, _, accuracy, _ = classifier.create_model(
+                    args.get_config(args.MODEL_BUILD),
+                    vocab_size=valid_vocab_size,
+                    is_prediction=False)
                 self.logger.info("Validation neural network initialized.")
 
         valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))
@@ -326,6 +348,16 @@ class TrainEngine(object):
         else:
             self.standstill_count = 0
             self.pre_epoch_valid_loss = current_valid_loss
+        return False
+
+    def _exclude_from_weight_decay(self, name):
+        """exclude_from_weight_decay"""
+        if name.find("layer_norm") > -1:
+            return True
+        bias_suffix = ["_bias", "_b", ".b_0"]
+        for suffix in bias_suffix:
+            if name.endswith(suffix):
+                return True
         return False
 
 

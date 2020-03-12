@@ -5,6 +5,7 @@
     "use_gpu":{"type":"bool","description":"是否使用gpu","default":true},
     "num_of_device":{"type":"int","description":"使用的设备数","default":1},
     "model_path":{"type":"string","description":"预测使用模型路径","default":""},
+    "pretrained_model_type": {"type":"string","description":"预训练模型选用哪个","default":"bert"},
     "batch_size":{"type":"int","description":"batch的大小","default":32}
   },
 "dataset":{
@@ -15,7 +16,6 @@
     "dev_examples_path":{"type":"string","description":"划分好的验证集缓存路径","default":"File_Directory/examples/dev.examples"},
     "test_examples_path":{"type":"string","description":"划分好的测试集缓存路径","default":"File_Directory/examples/test.examples"},
     "max_seq_length":{"type":"int","description":"最长序列长度","default":512},
-    "is_ernie":{"type":"bool","description":"是否为针对ernie字典的处理","default":true},
     "vocab_type":{"type":"string","description":"读取字典文件类型","default":"vocab"},
     "vocab_name":{"type":"string","description":"读取字典文件名","default":"vocab"},
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
@@ -24,7 +24,6 @@
     "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true}
   },
 "build":{
-    "pretrained_model_type": {"type":"string","description":"预训练模型选用哪个","default":"bert"},
     "vocab_size": {"type":"int","description":"当不为-1时，将优先于程序计算的实际vocab size","default":-1},
     "num_labels":{"type":"int","description":"分类的类别数","default":3},
     "use_fp16":{"type":"bool","description":"是否使用浮点16位","default":false},
@@ -46,6 +45,10 @@
     "base_learning_rate":{"type":"float","description":"基础学习率","default":0.0001},
     "learning_rate_strategy":{"type":"string","description":"学习率变化策略","default":"fixed"},
     "optimizer":{"type":"string","description":"优化器选择","default":"sgd"},
+    "gradient_clip": {"type":"bool","description":"做梯度裁剪","default":false},
+    "clip_norm": {"type":"float","description":"若做梯度裁剪，范数最大值","default":1.0},
+    "regularization":{"type":"string","description":"正则化选择，可选L1或L2或空","default":""},
+    "regularization_coeff": {"type":"float","description":"正则化系数","default":0.0},
     "decay_step":{"type":"int","description":"学习率在这个步数范围内逐渐下降","default":10000},
     "decay_rate":{"type":"float","description":"学习率下降速率","default":0.5},
     "stair_decay":{"type":"bool","description":"学习率是否阶梯下降","default":false},

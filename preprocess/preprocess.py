@@ -40,7 +40,7 @@ class PreProcess:
 
         self.func(half_width)
         self.func(lower)
-        if self.args["is_ernie"]:
+        if self.args["pretrained_model_type"] == "ernie":
             self.func(punctuation_replace_for_ernie)
             self.func(translate_for_ernie)
         self.func(split_unk, self.c_token.vocab)

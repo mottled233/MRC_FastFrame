@@ -2,7 +2,7 @@ import paddle
 import paddle.fluid as fluid
 
 
-def get_optimizer(learning_rate, args, regularization=None):
+def get_optimizer(learning_rate, args):
     """
     根据参数返回对应的优化器
     :param learning_rate: 学习率，数字或变量（vars）
@@ -11,6 +11,9 @@ def get_optimizer(learning_rate, args, regularization=None):
     :return: 优化器
     """
     OPTIMIZER = args["optimizer"]
+    GRADIENT_CLIP = args['gradient_clip']
+    CLIP_NORM = args['clip_norm']
+
     optimizers = {
         "sgd": get_sgd,
         "momentum": get_momentum,
@@ -18,6 +21,15 @@ def get_optimizer(learning_rate, args, regularization=None):
         "adam": get_adam,
     }
     optimizer = optimizers.get(OPTIMIZER, -1)
+
+    #regularization = get_regularization(args)
+    regularization = None
+
+    # L2 Norm 裁剪梯度
+    if GRADIENT_CLIP:
+        fluid.clip.set_gradient_clip(
+            clip=fluid.clip.GradientClipByGlobalNorm(clip_norm=CLIP_NORM))
+
     if optimizer == -1:
         raise ValueError("Unknown strategies, expect following options:\n{}".format("\n\t".join(optimizers.keys())))
     return optimizer(learning_rate, regularization, args)
@@ -50,5 +62,20 @@ def get_adam(learning_rate, regularization, args):
                                    beta2=BETA2,
                                    epsilon=EPSILON,
                                    regularization=regularization)
+
+
+def get_regularization(args):
+    REGULARIZATION = args['regularization']
+    REGULARIZATION_COEFF = args['regularization_coeff']
+
+    if REGULARIZATION == 'L1':
+        regularization = fluid.regularizer.L1Decay(regularization_coeff=REGULARIZATION_COEFF)
+    elif REGULARIZATION == 'L2':
+        regularization = fluid.regularizer.L2Decay(regularization_coeff=REGULARIZATION_COEFF)
+    else:
+        regularization = None
+
+    return regularization
+
 
 

@@ -6,6 +6,7 @@ import sys
 from engine.train import TrainEngine as TrainEngine
 from engine.predict import PredictEngine as PredictEngine
 from data.Dataset import Dataset
+from data.Corpus_cleaner import Corpus_cleaner
 from preprocess.preprocess import PreProcess
 
 from util.util_parameter import UtilParameter as UParam
@@ -23,6 +24,14 @@ if __name__ == "__main__":
     logger = ULog(param)
 
     app_name = args["app_name"]
+
+    corpus_cleaner = Corpus_cleaner()
+    # corpus_cleaner.read_from_json("pretrain_corpus.json")
+    corpus_cleaner.read_from_src()
+    docs = corpus_cleaner.get_docs()
+    for i in range(10):
+        print(docs[i])
+        print("###########################################################")
 
     # 读取数据集
     datasets = Dataset(logger=logger, args=param.get_config(param.DATASET))

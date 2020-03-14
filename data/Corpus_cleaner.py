@@ -6,10 +6,11 @@ import re
 
 def clean_strip(text):
     """
-    去除多符号结尾，改为以句号结尾
+    去除多符号结尾，改为以句号结尾,去掉连续的句号
     """
     text = text.strip(',..，,。？')
     text += '。'
+    text = text.replace("。。", "。")
     return text
 
 
@@ -44,11 +45,13 @@ class Corpus_cleaner:
     def __init__(self):
         self.docs = []
 
-    def read_from_json(self, json_path):
-        self.docs = js.load(open(json_path, 'r'))["corpus"]
+    def read_from_txt(self, txt_path):
+        file = open(txt_path, 'r', encoding='utf-8')
+        for line in file:
+            self.docs.append(line[:-1])
 
     def read_from_src(self):
-        with open("pretrain_corpus.json", "w", encoding='utf-8') as f:
+        with open("pretrain_corpus.txt", "w", encoding='utf-8') as f:
             files = []
             file1 = open("/home/aistudio/data/data23310/train.json", "r", encoding="utf-8")
             file2 = open("/home/aistudio/data/data23310/dev.json", "r", encoding="utf-8")
@@ -72,11 +75,11 @@ class Corpus_cleaner:
                         # 舍弃没有句号的文档
                         if "。" in doc[:-1]:
                             self.docs.append(doc)
+                            f.write(doc + '\n')
                             count += 1
                             if count % 10000 == 0:
                                 print("has read {} docs".format(count))
             print("docs_num == {}".format(len(self.docs)))
-            js.dump({"corpus": self.docs}, f)
             f.close()
 
     def get_docs(self):

@@ -35,8 +35,9 @@
     "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0.1},
     "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0.1},
     "initializer_range":{"type":"float","description":"参数随机初始化时的标准差","default":0.02},
-    "mrc_layer":{"type":"string","description":"机器阅读理解层","default":"cls_fc"}
-  },
+    "mrc_layer":{"type":"string","description":"机器阅读理解层","default":"cls_fc"},
+    "freeze_pretrained_model":{"type":"bool","description":"是否冻结预训练模型参数","default":false}
+},
 "train":{
     "max_epoch":{"type":"int","description":"最大训练epoch","default":20},
     "early_stopping":{"type":"bool","description":"是否采用早停策略","default":true},
@@ -64,7 +65,7 @@
     "adam_epsilon":{"type":"float","description":"保持数值稳定性的短浮点类型值","default":1e-08},
     "snapshot_frequency":{"type":"int", "description":"每隔多少step保存一次训练快照", "default":500},
     "continue_train":{"type":"bool","description":"是否是接上一次训练，若为true必须指定load_model_path","default":false},
-    "pretrained_model_path":{"type":"string", "description":"当是第一次训练时，指定预训练模型", "default":"File_Directory/pretrained/params"},
+    "read_checkpoint": {"type": "bool","description":"继续上一次训练时，读取其训练的步骤、epoch等信息","default":false},
     "print_per_step":{"type":"int", "description":"每隔多少步打印一次信息，若小于1则不打印", "default": 10}
 },
 "predict": {

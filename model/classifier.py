@@ -51,11 +51,18 @@ def create_model(args,
         use_fp16=False)
 
     mrc_layer = config['mrc_layer']
+    freeze_pretrained_model = config['freeze_pretrained_model']
+
+    cls_feats = bert.get_pooled_output()
+    bert_encode = bert.get_sequence_output()
+
+    if freeze_pretrained_model:
+        cls_feats.stop_gradient = True
+        bert_encode.stop_gradient = True
 
     logits = None
     if mrc_layer == "cls_fc":
         # 取[CLS]的输出经全连接进行预测
-        cls_feats = bert.get_pooled_output()
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
             dropout_prob=0.1,
@@ -70,7 +77,7 @@ def create_model(args,
                 name="cls_out_b", initializer=fluid.initializer.Constant(0.)))
     elif mrc_layer == "capsNet":
         # 取完整的bert_output，输入胶囊网络
-        bert_output = bert.get_sequence_output()
+        bert_output = bert_encode
         param_attr = fluid.ParamAttr(name='conv2d.weight', initializer=fluid.
                                      initializer.Xavier(uniform=False),
                                      learning_rate=0.001)
@@ -89,6 +96,34 @@ def create_model(args,
         v_length = fluid.layers.sqrt(fluid.layers.reduce_sum(fluid.layers.square(caps2),
                                                              -2, keep_dim=True) + epsilon)
         logits = fluid.layers.squeeze(v_length, axes=[2, 3])
+
+    elif mrc_layer == "lstm":
+        hidden_size = 128
+
+        cell = fluid.layers.LSTMCell(hidden_size=hidden_size)
+        cell_r = fluid.layers.LSTMCell(hidden_size=hidden_size)
+        encoded = bert_encode
+        encoded = fluid.layers.dropout(
+            x=encoded,
+            dropout_prob=0.1,
+            dropout_implementation="upscale_in_train")
+        outputs = fluid.layers.rnn(cell, encoded)[0][:, -1, :]
+        outputs_r = fluid.layers.rnn(cell_r, encoded, is_reverse=True)[0][:, -1, :]
+        outputs = fluid.layers.concat(input=[outputs, outputs_r], axis=1)
+        # 取[CLS]的输出经全连接进行预测
+        cls_feats = outputs
+        cls_feats = fluid.layers.dropout(
+            x=cls_feats,
+            dropout_prob=0.1,
+            dropout_implementation="upscale_in_train")
+        logits = fluid.layers.fc(
+            input=cls_feats,
+            size=args['num_labels'],
+            param_attr=fluid.ParamAttr(
+                name="lstm_fc_w",
+                initializer=fluid.initializer.TruncatedNormal(scale=0.02)),
+            bias_attr=fluid.ParamAttr(
+                name="lstm_fc_b", initializer=fluid.initializer.Constant(0.)))
 
     # 根据任务返回不同的结果
     # 预测任务仅返回dataloader和预测出的每个label对应的概率

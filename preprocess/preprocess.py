@@ -28,7 +28,11 @@ class PreProcess:
         self.args = args
         self.for_prediction = for_prediction
 
+        reverse_qa = False
         self.examples = examples
+        if reverse_qa:
+            self.reverse_qa()
+
         self.max_seq_length = self.args["max_seq_length"]
 
         # self.logger.info("Prepare to build tokenizer ……")
@@ -120,9 +124,11 @@ class PreProcess:
         max_len = 0
         total_token_num = 0
         for i in range(l1):
+            if len(ques_ids[i]) + len(ans_ids[i]) > self.max_seq_length - 3:
+                ques_ids[i], ans_ids[i] = self._truncate_seq_pair(ques_ids[i], ans_ids[i])
+
             sent = [special_char["CLS"]] + ques_ids[i] + [special_char["SEP"]] + ans_ids[i] + [special_char["SEP"]]
-            if len(sent) > self.max_seq_length:
-                sent = sent[:self.max_seq_length - 1] + [special_char["SEP"]]
+
             batch_tokens.append(sent)
             max_len = max(max_len, len(sent))
             total_token_num += len(sent)
@@ -264,3 +270,29 @@ class PreProcess:
     def batch_generator(self):
         reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])
         return reader
+
+    def reverse_qa(self):
+        """
+        将question和answer的位置互换
+        """
+        for example in self.examples:
+            a = example.answer
+            example.answer = example.question
+            example.question = a
+
+    def _truncate_seq_pair(self, tokens_a, tokens_b):
+        """截短过长的问答对."""
+        max_length = self.max_seq_length - 3
+
+        while True:
+            total_length = len(tokens_a) + len(tokens_b)
+            if total_length <= max_length:
+                break
+            if len(tokens_a) > len(tokens_b):
+                tokens_a.pop()
+            else:
+                tokens_b.pop()
+
+        return tokens_a, tokens_b
+
+

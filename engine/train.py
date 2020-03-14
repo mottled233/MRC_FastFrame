@@ -165,10 +165,8 @@ class TrainEngine(object):
             STANDSTILL_STEP = self.args["early_stopping_stand_times"]
 
         CONTINUE = self.args["continue_train"]
-        if CONTINUE:
-            MODEL_PATH = self.args["load_model_path"]
-
-        PRETRAIN_MODEL = self.args["pretrained_model_path"]
+        MODEL_PATH = self.args["load_model_path"]
+        CHECK_POINT = self.args["read_checkpoint"]
 
         # 定义执行器
         executor = fluid.Executor(self.get_executor_run_places(self.args))
@@ -179,7 +177,7 @@ class TrainEngine(object):
         step_in_epoch = 0
         total_epoch = 0
         # 读取模型现有的参数并为继续训练进行相应处理
-        if CONTINUE:
+        if CONTINUE and CHECK_POINT:
             info = model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
             self.logger.info("Model file in {} has been loaded".format(MODEL_PATH))
             if info:
@@ -187,10 +185,10 @@ class TrainEngine(object):
                 step_in_epoch = info.get("step_in_epoch", 0)
                 total_epoch = info.get("epoch", 0)
                 self.logger.info("Load train info: {}".format(info))
-        elif PRETRAIN_MODEL != "":
+        elif MODEL_PATH != "":
             # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
-            model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=PRETRAIN_MODEL)
-            self.logger.info("Pre-trained model file in {} has been loaded".format(PRETRAIN_MODEL))
+            model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=MODEL_PATH)
+            self.logger.info("Pre-trained model file in {} has been loaded".format(MODEL_PATH))
 
         self.logger.info("Ready to train the model.Executing...")
 

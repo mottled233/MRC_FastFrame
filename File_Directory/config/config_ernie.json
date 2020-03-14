@@ -1,11 +1,12 @@
 {
   "global": {
-    "app_name": "oov_continue_without_l2",
+    "app_name": "baseline_with_fixbug_bilstm_finetuning",
     "pretrained_model_type": "ernie",
     "use_parallel": true,
     "use_gpu": true,
     "num_of_device": 2,
-    "load_model_path": "File_Directory/models/ernie_base_with_replace_oov_epoch9_2020-03-12_02-04-35"
+    "load_model_path": "/gs/home/lianghx/exp/ernie_base_line/ernie_base_run_epoch_12_acc85.72"
+
   },
   "dataset": {
     "vocab_name": "vocab_ernie",
@@ -14,17 +15,19 @@
   },
   "build": {
     "hidden_act": "relu",
-    "vocab_size": 18000
+    "vocab_size": 18000,
+    "mrc_layer": "lstm",
+    "freeze_pretrained_model": true
   },
   "train": {
-    "base_learning_rate": 2e-6,
+    "base_learning_rate": 2e-5,
     "learning_rate_strategy": "noam_worm_up_and_decay",
-    "warm_up_step": 2760,
+    "warm_up_step": 1380,
     "optimizer": "adam",
     "continue_train": false,
     "regularization": "",
     "regularization_coeff": 0.01,
-    "continue_train": true
+    "read_checkpoint": false
   },
   "predict": {
 

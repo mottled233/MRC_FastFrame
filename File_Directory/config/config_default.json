@@ -40,6 +40,8 @@
 },
 "train":{
     "max_epoch":{"type":"int","description":"最大训练epoch","default":20},
+    "validate_in_epoch": {"type":"bool","description":"是否在epoch中进行验证","default":true},
+    "validate_frequency_step": {"type":"int","description":"若在epoch中进行验证，则多少step验证一次","default":500},
     "early_stopping":{"type":"bool","description":"是否采用早停策略","default":true},
     "early_stopping_threshold":{"type":"float","description":"性能增长比例小于阈值被判断为停滞","default":0.03},
     "early_stopping_stand_times":{"type":"int","description":"连续停滞超过几次停止训练","default":5},

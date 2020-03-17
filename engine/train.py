@@ -193,14 +193,14 @@ class TrainEngine(object):
         self.logger.info("Ready to train the model.Executing...")
 
         # 执行MAX_EPOCH次迭代save_train_snapshot
-        for epoch_id in range(total_epoch+1, MAX_EPOCH):
+        for epoch_id in range(total_epoch, MAX_EPOCH):
             # 一个epoch的训练过程，一个迭代
             total_step, loss = self.__run_train_iterable(executor, total_step, epoch_id, step_in_epoch)
             step_in_epoch = 0
             self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
             # 进行一次验证集上的验证
             valid_loss, valid_acc = self.__valid(executor)
-            self.logger.info(' Epoch {epoch} Validated, valid mean loss is {loss}'.format(epoch=epoch_id, loss=valid_loss))
+            self.logger.info(' Epoch {epoch} Validated'.format(epoch=epoch_id))
             # 进行保存
             info = {
                 "total_step": total_step,
@@ -229,7 +229,8 @@ class TrainEngine(object):
         NUM_OF_DEVICE = self.args["num_of_device"]
         APP_NAME = self.args["app_name"]
         SNAPSHOT_FREQUENCY = self.args["snapshot_frequency"]
-
+        VALID_FREQUENCY = self.args["validate_frequency_step"]
+        WHETHER_VALID = self.args["validate_in_epoch"]
         total_loss = 0
         total_data = 0
         for step, data in enumerate(self.train_data_loader()):
@@ -258,6 +259,10 @@ class TrainEngine(object):
                 file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog,
                                                             "{}_step{}".format(APP_NAME, total_step+step), info)
                 self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
+
+            if WHETHER_VALID and step % VALID_FREQUENCY == 0 and step != 0:
+                self.__valid(executor)
+
         mean_loss = total_loss / total_data
         return total_step + step, mean_loss
 

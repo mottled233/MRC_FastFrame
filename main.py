@@ -6,7 +6,6 @@ import sys
 from engine.train import TrainEngine as TrainEngine
 from engine.predict import PredictEngine as PredictEngine
 from data.Dataset import Dataset
-from data.Corpus_cleaner import Corpus_cleaner
 from preprocess.preprocess import PreProcess
 
 from util.util_parameter import UtilParameter as UParam
@@ -25,13 +24,13 @@ if __name__ == "__main__":
 
     app_name = args["app_name"]
 
-    corpus_cleaner = Corpus_cleaner()
-    # corpus_cleaner.read_from_json("pretrain_corpus.json")
-    corpus_cleaner.read_from_src()
-    docs = corpus_cleaner.get_docs()
-    for i in range(10):
-        print(docs[i])
-        print("###########################################################")
+    # corpus_cleaner = Corpus_cleaner()
+    # # corpus_cleaner.read_from_json("pretrain_corpus.json")
+    # corpus_cleaner.read_from_src()
+    # docs = corpus_cleaner.get_docs()
+    # for i in range(10):
+    #     print(docs[i])
+    #     print("###########################################################")
 
     # 读取数据集
     datasets = Dataset(logger=logger, args=param.get_config(param.DATASET))
@@ -51,11 +50,11 @@ if __name__ == "__main__":
     valid_vocab_size = valid_preprocess.get_vocab_size()
     valid_batch_reader = valid_preprocess.batch_generator()
     # # 预测数据预处理
-    # predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset,
-    #                                 for_prediction=True)
-    # predict_preprocess.prepare_batch_data(cache_filename="")
-    # predict_vocab_size = predict_preprocess.get_vocab_size()
-    # predict_batch_reader = predict_preprocess.batch_generator()
+    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
+                                    for_prediction=True)
+    predict_preprocess.prepare_batch_data(cache_filename="")
+    predict_vocab_size = predict_preprocess.get_vocab_size()
+    predict_batch_reader = predict_preprocess.batch_generator()
 
     # 训练过程
     train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
@@ -67,8 +66,7 @@ if __name__ == "__main__":
 
     # # 预测过程
     # predict_engine = PredictEngine(param=param, logger=logger, vocab_size=predict_vocab_size)
-    # # predict_engine.init_model(vocab_size=predict_vocab_size)
     # predict_engine.predict(predict_batch_reader)
-    # example_info = util_tool.trans_exam_list_to_colum(validset)
-    # predict_engine.write_full_info(attach_data=example_info)
+    # # example_info = util_tool.trans_exam_list_to_colum(validset)
+    # predict_engine.write_to_json()
 

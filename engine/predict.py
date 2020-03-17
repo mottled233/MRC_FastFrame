@@ -157,11 +157,15 @@ class PredictEngine(object):
         :param attach_data: 附加的信息，也按表头：数据的形式。注意长度必须与预测结果列表一致
         :return: 保存文件路径
         """
-        data_dict = {"id": self.qas_id_list,
+        header_dict = {"id": self.qas_id_list,
                      "yesno_answer": self.yesno_list}
         attach_data_len = len(self.qas_id_list)
         for key in attach_data:
             assert(attach_data_len == len(attach_data[key]), "Length of attach data must be equal to result list.")
+        data_dict = {}
+        for header in headers:
+            data_dict[header] = header_dict[header]
+
         data_dict.update(attach_data)
 
         predict_file = file_utils.get_default_filename(self.args)

@@ -102,7 +102,7 @@ def create_model(args,
 
         cell = fluid.layers.LSTMCell(hidden_size=hidden_size)
         cell_r = fluid.layers.LSTMCell(hidden_size=hidden_size)
-        encoded = bert_encode
+        encoded = bert_encode[:, 1:, :]
         encoded = fluid.layers.dropout(
             x=encoded,
             dropout_prob=0.1,
@@ -110,12 +110,17 @@ def create_model(args,
         outputs = fluid.layers.rnn(cell, encoded)[0][:, -1, :]
         outputs_r = fluid.layers.rnn(cell_r, encoded, is_reverse=True)[0][:, -1, :]
         outputs = fluid.layers.concat(input=[outputs, outputs_r], axis=1)
-        # 取[CLS]的输出经全连接进行预测
+
         cls_feats = outputs
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
+        # fc = fluid.layers.fc(input=cls_feats, size=hidden_size*2)
+        # fc = fluid.layers.dropout(
+        #     x=fc,
+        #     dropout_prob=0.1,
+        #     dropout_implementation="upscale_in_train")
         logits = fluid.layers.fc(
             input=cls_feats,
             size=args['num_labels'],

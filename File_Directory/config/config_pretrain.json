@@ -1,0 +1,30 @@
+{
+  "global": {
+    "app_name": "roberta_pretrain",
+    "use_parallel": false,
+    "num_of_device": 1,
+    "batch_size": 8,
+    "load_model_path": "File_Directory/models/roberta_base_run_step74444_2020-03-11_18-57-13"
+  },
+  "dataset": {
+    "vocab_name": "vocab_roberta",
+    "max_seq_length": 512
+  },
+  "build": {
+    "pretrained_model_type": "roberta",
+    "hidden_act": "gelu",
+    "vocab_size": 21128
+  },
+  "train": {
+    "base_learning_rate": 1e-7,
+    "learning_rate_strategy": "fixed",
+    "optimizer": "adam",
+    "continue_train": false,
+    "pretrained_model_path": "File_Directory/pretrained/roberta/model",
+    "snapshot_frequency": 4000,
+    "print_per_step": 100
+  },
+  "predict": {
+
+  }
+}

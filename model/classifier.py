@@ -149,3 +149,46 @@ def create_model(args,
 
     # 返回dataloader，loss，预测结果，和准确度
     return reader, loss, probs, accuracy, qas_ids
+
+
+
+def create_model_for_pretrain(args, vocab_size):
+    if args['vocab_size'] > 0:
+        vocab_size = args['vocab_size']
+
+    # 输入定义
+    src_ids = fluid.data(name='src_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
+    pos_ids = fluid.data(name='pos_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
+    sent_ids = fluid.data(name='sent_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
+    input_mask = fluid.data(name='input_mask', dtype='float32', shape=[-1, args['max_seq_length'], 1])
+    mask_labels = fluid.data(name='mask_labels', dtype='int64', shape=[-1, 1])
+    mask_pos = fluid.data(name='mask_pos', dtype='int64', shape=[-1, 1])
+    reverse_labels = fluid.data(name='reverse_labels', dtype='int64', shape=[-1, 1])
+    # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
+    feed_list = [src_ids, pos_ids, sent_ids, input_mask, mask_labels, mask_pos, reverse_labels]
+    reader = fluid.io.DataLoader.from_generator(feed_list=feed_list, capacity=64, iterable=True)
+
+    # 模型部分
+    # 由bert后接一层全连接完成预测任务
+
+    # bert部分
+    config = args
+    config['vocab_size'] = vocab_size
+    bert = BertModel(
+        src_ids=src_ids,
+        position_ids=pos_ids,
+        sentence_ids=sent_ids,
+        input_mask=input_mask,
+        config=config,
+        use_fp16=False)
+
+    results = bert.get_pretraining_output(mask_labels, mask_pos, reverse_labels)
+    next_sent_acc, mean_mask_lm_loss, loss = results
+    return reader, next_sent_acc, mean_mask_lm_loss, loss
+
+  
+  
+  
+  
+  
+  

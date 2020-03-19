@@ -175,7 +175,7 @@ class TrainEngine(object):
 
         total_step = 0
         step_in_epoch = 0
-        total_epoch = 0
+        total_epoch = 1
         # 读取模型现有的参数并为继续训练进行相应处理
         if CONTINUE and CHECK_POINT:
             info = model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
@@ -193,7 +193,7 @@ class TrainEngine(object):
         self.logger.info("Ready to train the model.Executing...")
 
         # 执行MAX_EPOCH次迭代save_train_snapshot
-        for epoch_id in range(total_epoch, MAX_EPOCH):
+        for epoch_id in range(total_epoch, MAX_EPOCH+1):
             # 一个epoch的训练过程，一个迭代
             total_step, loss = self.__run_train_iterable(executor, total_step, epoch_id, step_in_epoch)
             step_in_epoch = 0
@@ -233,6 +233,8 @@ class TrainEngine(object):
         WHETHER_VALID = self.args["validate_in_epoch"]
         total_loss = 0
         total_data = 0
+        valid_step_loss = 0
+        batch_loss = 0
         for step, data in enumerate(self.train_data_loader()):
             # 为获取字段名，这里需要改
             if step <= step_in_epoch:
@@ -241,14 +243,17 @@ class TrainEngine(object):
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
                 self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
-            loss_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
-            total_loss += loss_value[0]
+            fetch_value = executor.run(program=self.train_main_prog, feed=data, fetch_list=[self.train_loss])
+            total_loss += fetch_value[0]
             total_data += 1
+            batch_loss += fetch_value[0]
+            valid_step_loss += fetch_value[0]
             # 打印逻辑
             if PRINT_PER_STEP > 0:
                 if step % PRINT_PER_STEP == 0:
                     self.logger.info("Step {step}: loss = {loss}".
-                                     format(step=total_step+step, loss=loss_value))
+                                     format(step=total_step+step, loss=batch_loss/PRINT_PER_STEP))
+                    batch_loss = 0
             # 保存逻辑
             info = {
                 "total_step": total_step,
@@ -262,6 +267,10 @@ class TrainEngine(object):
 
             if WHETHER_VALID and step % VALID_FREQUENCY == 0 and step != 0:
                 self.__valid(executor)
+                self.logger.info("from {}-{} step: mean loss = {}"
+                                 .format(total_step + step-VALID_FREQUENCY,
+                                         total_step + step, valid_step_loss/VALID_FREQUENCY))
+                valid_step_loss = 0
 
         mean_loss = total_loss / total_data
         return total_step + step, mean_loss
@@ -277,19 +286,23 @@ class TrainEngine(object):
         total_loss = 0
         total_accuracy = 0
         total_data = 0
+        batch_loss = 0
         for step, data in enumerate(self.valid_data_loader()):
             batch_size = data[0]['qas_ids'].shape()[0]
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
                 self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
-            loss_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss,
-                                                                                      self.valid_accuracy])
-            total_loss += loss_value[0]
-            total_accuracy += loss_value[1]
+            fetch_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss,
+                                                                                       self.valid_accuracy])
+            total_loss += fetch_value[0]
+            batch_loss += fetch_value[0]
+            total_accuracy += fetch_value[1]
             total_data += 1
             if PRINT_PER_STEP > 0:
                 if step % PRINT_PER_STEP == 0:
-                    self.logger.info("Valid batch {step} in epoch: loss = {loss}".format(step=step, loss=total_loss/total_data))
+                    self.logger.info("Valid batch {step} in epoch: loss = {loss}"
+                                     .format(step=step, loss=batch_loss/PRINT_PER_STEP))
+                    batch_loss = 0
         mean_loss = total_loss / total_data
         mean_accuracy = total_accuracy / total_data
         self.logger.info('valid mean loss is {loss}, mean accuracy is {acc}'.format(loss=mean_loss, acc=mean_accuracy))

@@ -150,7 +150,7 @@ class PredictEngine(object):
         self.logger.info("Finish predict the Yesno answer, num of predict examples is {}."
                          .format(len(self.yesno_list)))
 
-    def write_to_json(self, headers=("id", "yesno_answer"), attach_data={}):
+    def write_to_json(self, name="", headers=("id", "yesno_answer"), attach_data={}):
         """
 
         :param headers:  要写入的表头，必须在data_dict是定义好的
@@ -167,8 +167,10 @@ class PredictEngine(object):
             data_dict[header] = header_dict[header]
 
         data_dict.update(attach_data)
-
-        predict_file = file_utils.get_default_filename(self.args)
+        if name == "":
+            predict_file = file_utils.get_default_filename(self.args)
+        else:
+            predict_file = name
         result_list = []
         result_len = len(self.qas_id_list)
         for i in range(result_len):
@@ -179,7 +181,7 @@ class PredictEngine(object):
 
         return file_utils.save_file(result_list, file_name=predict_file, file_type="result", file_format="json")
 
-    def write_full_info(self, attach_data={}):
+    def write_full_info(self, name="", attach_data={}):
         """
         将预测的结果以完整形式（包括概率）写入csv
         :return:
@@ -191,7 +193,7 @@ class PredictEngine(object):
             attach[self.answer_list[i]] = probs_list[:, i]
 
         attach.update(attach_data)
-        return self.write_to_json(attach_data=attach)
+        return self.write_to_json(name=name, attach_data=attach)
 
 
 

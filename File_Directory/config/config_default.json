@@ -21,7 +21,8 @@
     "vocab_format":{"type":"string","description":"读取字典文件格式","default":"txt"},
     "do_lowercase":{"type":"bool","description":"是否进行对西文字符的处理","default":true},
     "is_mask":{"type":"bool","description":"是否进行mask覆盖","default":false},
-    "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true}
+    "shuffle":{"type":"bool","description":"是否对examples进行打乱","default":true},
+    "reverse_qa":{"type":"bool","description":"是否对examples的问题和答案进行颠倒","default":false}
   },
 "build":{
     "vocab_size": {"type":"int","description":"当不为-1时，将优先于程序计算的实际vocab size","default":-1},

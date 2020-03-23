@@ -28,7 +28,7 @@ class PreProcess:
         self.args = args
         self.for_prediction = for_prediction
 
-        reverse_qa = False
+        reverse_qa = self.args["reverse_qa"]
         self.examples = examples
         if reverse_qa:
             self.reverse_qa()
@@ -257,6 +257,7 @@ class PreProcess:
         self.logger.info("Finish data-preprocessing")
 
     def sample_generator(self):
+
         self.logger.info("Preprocessing a new round of data of {}".format(len(self.features)))
         if self.args["shuffle"]:
             random.shuffle(self.features)
@@ -268,6 +269,7 @@ class PreProcess:
                 yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask
 
     def batch_generator(self):
+
         reader = fluid.io.batch(self.sample_generator, batch_size=self.args["batch_size"])
         return reader
 
@@ -275,13 +277,17 @@ class PreProcess:
         """
         将question和answer的位置互换
         """
+
         for example in self.examples:
             a = example.answer
             example.answer = example.question
             example.question = a
 
     def _truncate_seq_pair(self, tokens_a, tokens_b):
-        """截短过长的问答对."""
+        """
+        截短过长的问答对
+        """
+
         max_length = self.max_seq_length - 3
 
         while True:
@@ -294,5 +300,3 @@ class PreProcess:
                 tokens_b.pop()
 
         return tokens_a, tokens_b
-
-

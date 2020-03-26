@@ -1,21 +1,22 @@
 {
   "global": {
-    "app_name": "highway_lstm",
+    "app_name": "roberta_large",
     "pretrained_model_type": "ernie",
     "use_parallel": false,
     "use_gpu": true,
     "num_of_device": 1,
-    "load_model_path": "/gs/home/lianghx/lhx/MRC/File_Directory/models/highway_lstm_step2500_2020-03-20_10-14-24"
+    "batch_size": 32,
+    "load_model_path": "/gs/home/lianghx/exp/bilstm_without_cls/model_86.5test_acc"
   },
   "dataset": {
     "vocab_name": "vocab_ernie",
     "max_seq_length": 513,
-    "shuffle": true
+    "shuffle": false
   },
   "build": {
     "hidden_act": "relu",
     "vocab_size": 18000,
-    "mrc_layer": "highway_lstm",
+    "mrc_layer": "lstm",
     "freeze_pretrained_model": false
   },
   "train": {

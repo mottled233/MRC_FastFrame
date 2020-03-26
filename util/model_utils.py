@@ -1,14 +1,20 @@
 import paddle.fluid as fluid
 import paddle.fluid.io as io
-import util.util_filepath as file_utils
 import time
 import os
+import logging
+import util.model_utils as model_utils
+import util.util_filepath as file_utils
+import numpy as np
+
+
+logger = logging.getLogger("MRC_logger")
 
 
 def save_train_snapshot(executor, program, file_name="", train_info={}):
     name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
     file_name = file_name + "_" + name
-    file_path = file_utils.get_fullurl("model", file_name, "pickle")
+    file_path = file_utils.get_fullurl("model", file_name, "dir")
     file_utils.save_file(content=train_info, file_type="model", file_name=file_name, file_format="json")
     io.save_persistables(executor=executor, dirname=file_path, main_program=program)
     return file_path
@@ -26,7 +32,7 @@ def load_train_snapshot(executor, program, file_path):
 def save_model_as_whole(program, file_name="", file_path=""):
     if file_path == "":
         name = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime(time.time()))
-        file_path = file_utils.get_fullurl("model", file_name + name, "pickle")
+        file_path = file_utils.get_fullurl("model", file_name + name, "dir")
 
     io.save(program, file_path)
     return file_path
@@ -45,7 +51,7 @@ def load_model_params(exe, params_path, program):
             return False
         if os.path.exists(os.path.join(params_path, var.name)):
             return True
-        print("missing layer: {}".format(var.name))
+        logger.info("missing layer: {}".format(var.name))
         return False
 
     io.load_vars(exe, params_path, main_program=program, predicate=existed_params)

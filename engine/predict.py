@@ -93,6 +93,7 @@ class PredictEngine(object):
         """
         self.logger.info("Start to predict data from input generator...")
         self.probs_list = []
+        self.qas_id_list = []
         # 加载数据
         self.loader.set_sample_list_generator(data_generator,
                                               places=TrainEngine.get_data_run_places(self.args))
@@ -179,7 +180,7 @@ class PredictEngine(object):
                 record[key] = data_dict[key][i]
             result_list.append(record)
 
-        return file_utils.save_file(result_list, file_name=predict_file, file_type="result", file_format="json")
+        return file_utils.save_file(result_list, file_name=predict_file, file_type="result", file_format="json_dump")
 
     def write_full_info(self, name="", attach_data={}):
         """

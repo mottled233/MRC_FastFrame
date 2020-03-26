@@ -196,6 +196,10 @@ class TrainEngine(object):
         for epoch_id in range(total_epoch, MAX_EPOCH+1):
             # 一个epoch的训练过程，一个迭代
             total_step, loss = self.__run_train_iterable(executor, total_step, epoch_id, step_in_epoch)
+
+            if total_step == False:
+                return
+
             step_in_epoch = 0
             self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
             # 进行一次验证集上的验证
@@ -216,6 +220,9 @@ class TrainEngine(object):
                 if need_stop:
                     self.logger.info("Performance improvement stalled, ending the training process")
                     break
+
+            if os.path.isfile("stop_signal"):
+                return
         # 保存现有模型
         file_path = model_utils.save_train_snapshot(executor, self.origin_train_prog, APP_NAME)
         self.logger.info("Training process completed. model saved in {}".format(file_path))
@@ -237,7 +244,7 @@ class TrainEngine(object):
         batch_loss = 0
         for step, data in enumerate(self.train_data_loader()):
             # 为获取字段名，这里需要改
-            if step <= step_in_epoch:
+            if step_in_epoch != 0 and step <= step_in_epoch:
                 continue
             batch_size = data[0]['qas_ids'].shape()[0]
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
@@ -271,6 +278,8 @@ class TrainEngine(object):
                                  .format(total_step + step-VALID_FREQUENCY,
                                          total_step + step, valid_step_loss/VALID_FREQUENCY))
                 valid_step_loss = 0
+                if os.path.isfile("stop_signal"):
+                    return False, False
 
         mean_loss = total_loss / total_data
         return total_step + step, mean_loss

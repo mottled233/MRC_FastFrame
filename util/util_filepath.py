@@ -7,7 +7,8 @@ import time
 root = os.path.abspath("")
 folder = {"data": "/dataset", "example": "/examples", "datap": "/dataset_processed", "result": "/results",
           "model": "/models", "log": "/logging", "config": "/config", "vocab": "/vocab"}
-suffix = {"json": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt", "pickle": "", "": ""}
+suffix = {"json": ".json", "json_dump": ".json", "csv": ".csv", "tsv": ".tsv", "txt": ".txt",
+          "pickle": "", "": "", "dir": ""}
 # root: 根目录
 # folder: 文件类型对应保存文件名
 # suffix: 文件格式对应的后缀
@@ -106,6 +107,9 @@ def save_file(content, file_type, file_name, file_format="json"):
                     f.write('\n')
             else:
                 json.dump(content, f)
+    elif file_format == "json_dump":
+        with open(url, 'w', encoding='utf-8', newline='') as f:
+            json.dump(content, f)
     elif file_format == "csv":
         with open(url, 'w', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)

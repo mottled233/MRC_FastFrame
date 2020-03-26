@@ -4,6 +4,9 @@ import logging
 from util.util_parameter import *
 
 
+LOG_NAME = "MRC_logger"
+
+
 class UtilLogging:
 
     lev = {1: logging.DEBUG, 2: logging.INFO, 3: logging.WARNING, 4: logging.ERROR, 5: logging.CRITICAL}

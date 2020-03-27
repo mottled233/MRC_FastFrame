@@ -49,7 +49,8 @@ def create_model(args,
         sentence_ids=sent_ids,
         input_mask=input_mask,
         config=config,
-        use_fp16=False)
+        use_fp16=False,
+        is_prediction=is_prediction)
 
     mrc_layer = config['mrc_layer']
     freeze_pretrained_model = config['freeze_pretrained_model']
@@ -67,6 +68,7 @@ def create_model(args,
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
             dropout_prob=0.1,
+            is_test=is_prediction,
             dropout_implementation="upscale_in_train")
         logits = fluid.layers.fc(
             input=cls_feats,
@@ -99,13 +101,14 @@ def create_model(args,
         logits = fluid.layers.squeeze(v_length, axes=[2, 3])
 
     elif mrc_layer == "lstm":
-        hidden_size = 128
+        hidden_size = 64
 
         cell = fluid.layers.LSTMCell(hidden_size=hidden_size)
         cell_r = fluid.layers.LSTMCell(hidden_size=hidden_size)
         encoded = bert_encode[:, 1:, :]
         encoded = fluid.layers.dropout(
             x=encoded,
+            is_test=is_prediction,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         outputs = fluid.layers.rnn(cell, encoded)[0][:, -1, :]
@@ -115,6 +118,7 @@ def create_model(args,
         cls_feats = outputs
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
+            is_test=is_prediction,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         # fc = fluid.layers.fc(input=cls_feats, size=hidden_size*2)
@@ -140,12 +144,14 @@ def create_model(args,
         encoded = bert_encode[:, 1:, :]
         encoded = fluid.layers.dropout(
             x=encoded,
+            is_test=is_prediction,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
 
         encoded = highway_layer(encoded, name="highway1", num_flatten_dims=2)
         encoded = fluid.layers.dropout(
             x=encoded,
+            is_test=is_prediction,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
 
@@ -156,6 +162,7 @@ def create_model(args,
         cls_feats = outputs
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
+            is_test=is_prediction,
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         # fc = fluid.layers.fc(input=cls_feats, size=hidden_size*2)

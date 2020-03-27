@@ -114,7 +114,7 @@ class TrainEngine(object):
                 valid_data_loader, valid_loss, _, accuracy, _ = classifier.create_model(
                     args.get_config(args.MODEL_BUILD),
                     vocab_size=valid_vocab_size,
-                    is_prediction=False)
+                    is_prediction=True)
                 self.logger.info("Validation neural network initialized.")
 
         valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))

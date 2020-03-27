@@ -27,7 +27,8 @@ def transformer_encoder(inputs,
                         preprocess_cmd="n",
                         postprocess_cmd="da",
                         param_initializer=None,
-                        name=''):
+                        name='',
+                        is_test=False):
 
     enc_input = inputs
     # 多层encoder依次相连
@@ -47,11 +48,12 @@ def transformer_encoder(inputs,
             preprocess_cmd,
             postprocess_cmd,
             param_initializer=param_initializer,
-            name=name + '_layer_' + str(i))
+            name=name + '_layer_' + str(i),
+            is_test=is_test)
         enc_input = enc_output
 
     enc_output = pre_process_layer(
-        enc_output, preprocess_cmd, post_and_pre_process_dropout, name="post_encoder")
+        enc_output, preprocess_cmd, post_and_pre_process_dropout, name="post_encoder", is_test=is_test)
 
     return enc_output
 
@@ -72,7 +74,8 @@ def encoder_layer(inputs,
                   preprocess_cmd="n",
                   postprocess_cmd="da",
                   param_initializer=None,
-                  name=''
+                  name='',
+                  is_test=False
                   ):
     # multi_head_attention
     attn_output = multi_head_attention(
@@ -80,7 +83,7 @@ def encoder_layer(inputs,
             inputs,
             preprocess_cmd,
             post_and_pre_process_dropout,
-            name=name + '_pre_att'),
+            name=name + '_pre_att', is_test=is_test),
         None,
         None,
         attention_bias,
@@ -90,13 +93,13 @@ def encoder_layer(inputs,
         num_attention_heads,
         attention_dropout,
         param_initializer=param_initializer,
-        name=name + '_multi_head_att')
+        name=name + '_multi_head_att', is_test=is_test)
     attn_output = post_process_layer(
         inputs,
         attn_output,
         postprocess_cmd,
         post_and_pre_process_dropout,
-        name=name + '_post_att')
+        name=name + '_post_att', is_test=is_test)
 
     # 前馈神经网络层
     ffd_output = feed_forward_layer(
@@ -104,20 +107,23 @@ def encoder_layer(inputs,
             attn_output,
             preprocess_cmd,
             post_and_pre_process_dropout,
-            name=name + '_pre_ffn'),
+            name=name + '_pre_ffn',
+            is_test=is_test),
         hidden_state_size,
         inner_hidden_size,
         activate_dropout,
         hidden_act,
         param_initializer=param_initializer,
-        name=name + '_ffn')
+        name=name + '_ffn',
+        is_test=is_test)
 
     return post_process_layer(
         attn_output,
         ffd_output,
         postprocess_cmd,
         post_and_pre_process_dropout,
-        name=name + '_post_ffn')
+        name=name + '_post_ffn',
+        is_test=is_test)
 
 
 # 对encoder_layer中前馈层的实现
@@ -128,7 +134,8 @@ def feed_forward_layer(x,
                        dropout_rate,
                        hidden_act,
                        param_initializer=None,
-                       name='ffn'):
+                       name='ffn',
+                       is_test=False):
 
     # 将维数为hidden_size的向量转化为inner_hidden_size
     hidden = layers.fc(input=x,
@@ -144,8 +151,7 @@ def feed_forward_layer(x,
             hidden,
             dropout_prob=dropout_rate,
             dropout_implementation="upscale_in_train",
-            is_test=False)
-
+            is_test=is_test)
     # 将维数为inner_hidden_size的向量转化为hidden_size
     out = layers.fc(input=hidden,
                     size=hidden_size,
@@ -159,7 +165,7 @@ def feed_forward_layer(x,
 # 实现dropout、输入相加、normalization的前处理、后处理层
 # 一般接在其他层之前或之后，对输入输出进行处理
 def pre_post_process_layer(prev_out, out, process_cmd, dropout_rate=0.,
-                           name=''):
+                           name='', is_test=False):
 
     for cmd in process_cmd:
         if cmd == "a":  # 两个输入相加
@@ -185,7 +191,7 @@ def pre_post_process_layer(prev_out, out, process_cmd, dropout_rate=0.,
                     out,
                     dropout_prob=dropout_rate,
                     dropout_implementation="upscale_in_train",
-                    is_test=False)
+                    is_test=is_test)
     return out
 
 
@@ -203,7 +209,8 @@ def multi_head_attention(queries,
                          dropout_rate=0.,
                          cache=None,
                          param_initializer=None,
-                         name='multi_head_att'):
+                         name='multi_head_att',
+                         is_test=False):
 
     keys = queries if keys is None else keys
     values = keys if values is None else values
@@ -263,7 +270,7 @@ def multi_head_attention(queries,
             inplace=True)
 
     # 计算q与k的点积，并凭此对v加权求和
-    def scaled_dot_product_attention(q, k, v, attn_bias, d_key, dropout_rate):
+    def scaled_dot_product_attention(q, k, v, attn_bias, d_key, dropout_rate, is_test=False):
         scaled_q = layers.scale(x=q, scale=d_key**-0.5)
         product = layers.matmul(x=scaled_q, y=k, transpose_y=True)
         if attn_bias:
@@ -274,7 +281,7 @@ def multi_head_attention(queries,
                 weights,
                 dropout_prob=dropout_rate,
                 dropout_implementation="upscale_in_train",
-                is_test=False)
+                is_test=is_test)
         out = layers.matmul(weights, v)
         return out
 
@@ -299,7 +306,7 @@ def multi_head_attention(queries,
     v = __split_heads(v, n_head)
 
     ctx_multiheads = scaled_dot_product_attention(q, k, v, attention_bias, key_size,
-                                                  dropout_rate)
+                                                  dropout_rate, is_test=is_test)
 
     out = __combine_heads(ctx_multiheads)
 

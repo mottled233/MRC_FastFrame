@@ -54,7 +54,8 @@ class BertModel(object):
                  input_mask,
                  config,
                  weight_sharing=True,
-                 use_fp16=False):
+                 use_fp16=False,
+                 is_prediction=False):
 
         self._emb_size = config['hidden_size']
         self._n_layer = config['num_hidden_layers']
@@ -77,10 +78,10 @@ class BertModel(object):
         self._param_initializer = fluid.initializer.TruncatedNormal(
             scale=config['initializer_range'])
 
-        self._build_model(src_ids, position_ids, sentence_ids, input_mask)
+        self._build_model(src_ids, position_ids, sentence_ids, input_mask, is_test=is_prediction)
 
     # 进行模型的搭建工作
-    def _build_model(self, src_ids, position_ids, sentence_ids, input_mask):
+    def _build_model(self, src_ids, position_ids, sentence_ids, input_mask, is_test=False):
         # padding对应的词表中的id必须为0
         # 模型中的三种embedding
         emb_out = fluid.layers.embedding(
@@ -109,7 +110,7 @@ class BertModel(object):
 
         # 接下来是transformer的encoder部分(随机的mask，构造任务，过encoder等)
         emb_out = pre_process_layer(
-            emb_out, 'nd', self._post_and_pre_process_dropout, name='pre_encoder')
+            emb_out, 'nd', self._post_and_pre_process_dropout, name='pre_encoder', is_test=is_test)
 
         if self._dtype == "float16":
             input_mask = fluid.layers.cast(x=input_mask, dtype=self._dtype)
@@ -138,7 +139,8 @@ class BertModel(object):
             preprocess_cmd="",
             postprocess_cmd="dan",
             param_initializer=self._param_initializer,
-            name='encoder')
+            name='encoder',
+            is_test=is_test)
 
     # 返回序列每个位置的token对应的输出
     def get_sequence_output(self):
@@ -160,7 +162,7 @@ class BertModel(object):
         return next_sent_feat
 
     # 返回预训练任务的loss
-    def get_pretraining_output(self, mask_label, mask_pos, labels):
+    def get_pretraining_output(self, mask_label, mask_pos, labels, is_test=False):
         """Get the loss & accuracy for pretraining"""
 
         mask_pos = fluid.layers.cast(x=mask_pos, dtype='int32')
@@ -185,7 +187,7 @@ class BertModel(object):
 
         # layer norm
         mask_trans_feat = pre_process_layer(
-            mask_trans_feat, 'n', name='mask_lm_trans')
+            mask_trans_feat, 'n', name='mask_lm_trans', is_test=is_test)
 
         mask_lm_out_bias_attr = fluid.ParamAttr(
             name="mask_lm_out_fc.b_0",

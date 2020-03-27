@@ -45,6 +45,7 @@ if __name__ == "__main__":
     file_name = "File_Directory/results/{}.json".format(app_name)
     new_data_name = "{}_re_predict_data".format(app_name)
     new_result_name = "{}_re_predict_out".format(app_name)
+    final_result_name = "{}_final_out".format(app_name)
     threshold = 0.8
     mix_rate = 0.6
     decay_rate = 15
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     predict_preprocess.prepare_batch_data(cache_filename="")
     predict_vocab_size = predict_preprocess.get_vocab_size()
     predict_batch_reader = predict_preprocess.batch_generator()
-
+    #
     predict_engine = PredictEngine(param=param, logger=logger, vocab_size=predict_vocab_size)
     # predict_engine.init_model(vocab_size=predict_vocab_size)
 
@@ -203,5 +204,5 @@ if __name__ == "__main__":
     f_c_df = final_df[final_df.yes_or_no == final_df.yesno_answer]
     logger.info("second stage acc: {}".format(len(f_c_df)/len(final_df)))
 
-    file_utils.save_file(content=final_output, file_name=new_result_name, file_type="result", file_format="json")
+    file_utils.save_file(content=final_output, file_name=final_result_name, file_type="result", file_format="json")
 

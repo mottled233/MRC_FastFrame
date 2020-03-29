@@ -212,9 +212,9 @@ def create_model_for_pretrain(args, vocab_size):
     input_mask = fluid.data(name='input_mask', dtype='float32', shape=[-1, args['max_seq_length'], 1])
     mask_labels = fluid.data(name='mask_labels', dtype='int64', shape=[-1, 1])
     mask_pos = fluid.data(name='mask_pos', dtype='int64', shape=[-1, 1])
-    reverse_labels = fluid.data(name='reverse_labels', dtype='int64', shape=[-1, 1])
+    otheranswer_labels = fluid.data(name='otheranswer_labels', dtype='int64', shape=[-1, 1])
     # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
-    feed_list = [src_ids, pos_ids, sent_ids, input_mask, mask_labels, mask_pos, reverse_labels]
+    feed_list = [src_ids, pos_ids, sent_ids, input_mask, mask_labels, mask_pos, otheranswer_labels]
     reader = fluid.io.DataLoader.from_generator(feed_list=feed_list, capacity=64, iterable=True)
 
     # 模型部分
@@ -231,9 +231,9 @@ def create_model_for_pretrain(args, vocab_size):
         config=config,
         use_fp16=False)
 
-    results = bert.get_pretraining_output(mask_labels, mask_pos, reverse_labels)
-    next_sent_acc, mean_mask_lm_loss, loss = results
-    return reader, next_sent_acc, mean_mask_lm_loss, loss
+    results = bert.get_pretraining_output(mask_labels, mask_pos, otheranswer_labels)
+    qa_acc, mean_mask_lm_loss, loss = results
+    return reader, qa_acc, mean_mask_lm_loss, loss
 
   
   

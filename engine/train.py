@@ -13,41 +13,27 @@ import model.classifier as classifier
 class TrainEngine(object):
     """
     训练引擎，支持单机多卡训练
-    参数：
-        train_data_reader： batch化的训练数据集生成器，batch大小必须大于设备数
-        valid_data_reader： batch化的验证数据集生成器，batch大小必须大于设备数
-        args: UtilParameter实例，
-    一个所需train部分的参数示例：
-    args = {
-        "max_epoch": 100,
-        "snapshot_frequency": 10,
-        "early_stopping": True,
-        "warm_up": False,
-        "continue_train": False,
-        "load_model_path": "",
-        "use_parallel": True,
-        "use_gpu": False,
-        "num_of_device": 2,
-        "batch_size": 32,
-        "base_learning_rate": 0.01,
-        "learning_rate_strategy": "fixed",
-        "start_learning_rate": 1e-04,
-        "warm_up_step": 50,
-        "end_learning_rate": 1e-04,
-        "decay_step": 1000,
-        "optimizer": "sgd"
-    }
+    继承指南：
+        通过继承该类，根据需求重写一些分离出来的私有方法来完成改造
+        _init_train_model：载入训练模型
+        _init_train_strategy：初始化优化策略
+        _init_validate_model：载入验证模型
+        _load_process: 如何读取模型参数
+        _set_data_source：如何给data_loader设置数据来源
+        _run_train_iterable：在epoch内的训练过程
+        _valid：验证过程
+        train：训练的整个过程
+        early_stopping_strategy：早停相关策略
 
     """
-    def __init__(self, train_data_reader, train_vocab_size, valid_data_reader, valid_vocab_size, args, logger):
+    def __init__(self, vocab_size, params, logger):
         """
         对训练过程进行初始化
-        :param train_data_reader:
-        :param valid_data_reader:
-        :param args:
+        :param params:
         :param logger:
         """
-        self.args = args.get_config(args.TRAIN)
+        self.params = params
+        self.args = params.get_config(params.TRAIN)
         self.logger = logger
 
         '''
@@ -56,76 +42,62 @@ class TrainEngine(object):
         self.logger.info("Initializing training process...")
         self.train_main_prog = fluid.Program()
         self.train_startup_prog = fluid.Program()
+
         with fluid.program_guard(self.train_main_prog, self.train_startup_prog):
             # 使用 fluid.unique_name.guard() 实现与test program的参数共享
             with fluid.unique_name.guard():
+                # 初始化网络结构
                 self.logger.info("Initializing training neural network...")
-                # train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
-                train_data_loader, train_loss, _, _, _ = classifier.create_model(args.get_config(args.MODEL_BUILD),
-                                                                                 vocab_size=train_vocab_size,
-                                                                                 is_prediction=False)
+                train_data_loader, train_loss, train_fetch_data = self._init_train_model(vocab_size)
                 self.logger.info("Training neural network initialized.")
-                # 获取训练策略
+
+                # 设置训练策略
                 self.logger.info("Setting training strategy...")
-
-                learning_rate = lr_strategy.get_strategy(self.args)
-                optimizer = model.optimizer.get_optimizer(learning_rate, self.args)
-
-                if self.args['regularization'] == "L2":
-                    # L2正则
-                    param_list = dict()
-                    for param in self.train_main_prog.global_block().all_parameters():
-                        param_list[param.name] = param * 1.0
-                        param_list[param.name].stop_gradient = True
-
-                    _, param_grads = optimizer.minimize(train_loss)
-
-                    if self.args['regularization_coeff'] > 0:
-                        for param, grad in param_grads:
-                            if self._exclude_from_weight_decay(param.name):
-                                continue
-                            with param.block.program._optimized_guard(
-                                    [param, grad]), fluid.framework.name_scope("weight_decay"):
-                                updated_param = param - param_list[
-                                    param.name] * self.args['regularization_coeff'] * learning_rate
-                                fluid.layers.assign(output=param, input=updated_param)
-                else:
-                    optimizer.minimize(train_loss)
+                optimizer = self._init_train_strategy(train_loss)
                 self.logger.info("Training strategy has been set.")
 
-        # 为训练过程设置数据集
-        train_data_loader.set_sample_list_generator(train_data_reader, places=self.get_data_run_places(self.args))
+        # 属性化
         self.train_data_loader = train_data_loader
         self.optimizer = optimizer
         self.train_loss = train_loss
+        self.train_fetch_data = train_fetch_data
         self.logger.info("Training process initialized.")
 
         '''
         创建验证过程
         '''
-        self.logger.info("Initializing validation process...")
-        self.valid_main_prog = fluid.Program()
-        self.valid_startup_prog = fluid.Program()
-        with fluid.program_guard(self.valid_main_prog, self.valid_startup_prog):
-            # 使用 fluid.unique_name.guard() 实现与train program的参数共享
-            with fluid.unique_name.guard():
-                self.logger.info("Initializing validation neural network...")
-                # valid_data_loader, valid_loss = network(self.args, train=False)  # 一些网络定义
-                valid_data_loader, valid_loss, _, accuracy, _ = classifier.create_model(
-                    args.get_config(args.MODEL_BUILD),
-                    vocab_size=valid_vocab_size,
-                    is_prediction=True)
-                self.logger.info("Validation neural network initialized.")
+        VALIDATE = self.args["do_validate"]
+        if VALIDATE:
+            self.logger.info("Initializing validation process...")
+            self.valid_main_prog = fluid.Program()
+            self.valid_startup_prog = fluid.Program()
+            with fluid.program_guard(self.valid_main_prog, self.valid_startup_prog):
+                # 使用 fluid.unique_name.guard() 实现与train program的参数共享
+                with fluid.unique_name.guard():
+                    # 初始化网络定义
+                    self.logger.info("Initializing validation neural network...")
+                    valid_data_loader, valid_fetch_data = self._init_validate_model(vocab_size)
+                    self.logger.info("Validation neural network initialized.")
 
-        valid_data_loader.set_sample_list_generator(valid_data_reader, places=self.get_data_run_places(self.args))
+            # 属性化
+            self.valid_data_loader = valid_data_loader
+            self.valid_fetch_data = valid_fetch_data
 
-        self.valid_data_loader = valid_data_loader
-        self.valid_loss = valid_loss
-        self.valid_accuracy = accuracy
+        '''
+        读取保存的模型
+        '''
+        # 定义执行器
+        self.executor = fluid.Executor(self.get_executor_run_places(self.args))
+        # 执行初始化
+        self.executor.run(self.train_startup_prog)
+        # 读取保存的模型
+        self.train_status = self._load_process(self.executor, self.train_main_prog)
+
         # 对训练状态的记录
         self.pre_epoch_valid_loss = float("inf")
         self.standstill_count = 0
         self.logger.info("Validation process initialized.")
+
         '''
         过程并行化
         '''
@@ -144,51 +116,137 @@ class TrainEngine(object):
                                                         loss_name=self.train_loss.name,
                                                         places=self.get_data_run_places(self.args),
                                                         build_strategy=build_strategy)
-            self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog).with_data_parallel(
-                                                        share_vars_from=self.train_main_prog,
-                                                        places=self.get_data_run_places(self.args),
-                                                        build_strategy=build_strategy)
+
+            if VALIDATE:
+                self.valid_main_prog = fluid.CompiledProgram(self.valid_main_prog).with_data_parallel(
+                                                            share_vars_from=self.train_main_prog,
+                                                            places=self.get_data_run_places(self.args),
+                                                            build_strategy=build_strategy)
             self.logger.info("Parallel processes initialized.")
 
-    def train(self):
+    def _init_train_model(self, vocab_size):
         """
-        用于训练流程，根据参数完成训练，并使用验证数据对模型效果进行验证
-        :return: 无
+        定义训练过程中如何初始化网络
+        :param vocab_size: 词典大小，注意当参数设置词典大小时该项无效
+        :return: 必须为 reader, loss, fetch_data，其中fetch_data是一个字典，可以存放一些附加的信息，之后会被保存在
+                 self.train_fetch_data里。
         """
-        APP_NAME = self.args["app_name"]
-        MAX_EPOCH = self.args["max_epoch"]
-        SNAPSHOT_FREQUENCY = self.args["snapshot_frequency"]
+        # 一些网络定义
+        reader, loss, outputs, accuracy, qas_id = classifier.create_model(
+            self.params.get_config(self.params.MODEL_BUILD),
+            vocab_size=vocab_size,
+            is_prediction=False,
+            is_validate=False
+        )
+        return reader, loss, {'outpus': outputs, 'acc': accuracy, 'qas_id': qas_id}
 
-        EARLY_STOPPING = self.args["early_stopping"]
-        if EARLY_STOPPING:
-            THRESHOLD = self.args["early_stopping_threshold"]
-            STANDSTILL_STEP = self.args["early_stopping_stand_times"]
+    def _init_validate_model(self, vocab_size):
+        """
+        定义验证过程中如何初始化网络
+        :param vocab_size: 词典大小，注意当参数设置词典大小时该项无效
+        :return: 必须为 reader, fetch_data，其中fetch_data是一个字典，可以存放一些附加的信息，之后会被保存在
+                 self.valid_fetch_data里。
+        """
+        # 一些网络定义
+        reader, loss, outputs, accuracy, qas_id = classifier.create_model(
+            self.params.get_config(self.params.MODEL_BUILD),
+            vocab_size=vocab_size,
+            is_prediction=False,
+            is_validate=True
+        )
+        return reader, {'loss': loss, 'outpus': outputs, 'acc': accuracy, 'qas_id': qas_id}
 
+    def _init_train_strategy(self, train_loss):
+        """
+        定义训练的优化策略
+        :param train_loss: 模型中的loss
+        :return:
+        """
+        learning_rate = lr_strategy.get_strategy(self.args)
+        optimizer = model.optimizer.get_optimizer(learning_rate, self.args)
+
+        if self.args['regularization'] == "L2":
+            # L2正则
+            param_list = dict()
+            for param in self.train_main_prog.global_block().all_parameters():
+                param_list[param.name] = param * 1.0
+                param_list[param.name].stop_gradient = True
+
+            _, param_grads = optimizer.minimize(train_loss)
+
+            if self.args['regularization_coeff'] > 0:
+                for param, grad in param_grads:
+                    if self._exclude_from_weight_decay(param.name):
+                        continue
+                    with param.block.program._optimized_guard(
+                            [param, grad]), fluid.framework.name_scope("weight_decay"):
+                        updated_param = param - param_list[
+                            param.name] * self.args['regularization_coeff'] * learning_rate
+                        fluid.layers.assign(output=param, input=updated_param)
+        else:
+            optimizer.minimize(train_loss)
+        return optimizer
+
+    def _load_process(self, executor, main_prog):
+        """
+        读取模型的过程，
+        如果想从零开始，请将load_model_path设为空字符串，且read_checkpoint，continue_train为false
+        如果想从预训练模型（或某个基线）开始训练，请设置continue_train为False，
+        如果想继续训练，请设置请设置continue_train为True，
+        如果想从断点训练，请设置read_checkpoint为true。
+        :param executor:
+        :param main_prog:
+        :return: 字典，保存当前训练状态, 将保存在self.train_status中
+        """
         CONTINUE = self.args["continue_train"]
         MODEL_PATH = self.args["load_model_path"]
         CHECK_POINT = self.args["read_checkpoint"]
-
-        # 定义执行器
-        executor = fluid.Executor(self.get_executor_run_places(self.args))
-        # 执行初始化
-        executor.run(self.train_startup_prog)
 
         total_step = 0
         step_in_epoch = 0
         total_epoch = 1
         # 读取模型现有的参数并为继续训练进行相应处理
         if CONTINUE and CHECK_POINT:
-            info = model_utils.load_train_snapshot(executor, self.origin_train_prog, MODEL_PATH)
+            info = model_utils.load_train_snapshot(executor, main_prog, MODEL_PATH)
             self.logger.info("Model file in {} has been loaded".format(MODEL_PATH))
             if info:
                 total_step = info.get("total_step", 0)
                 step_in_epoch = info.get("step_in_epoch", 0)
-                total_epoch = info.get("epoch", 0)
+                total_epoch = info.get("epoch", 1)
                 self.logger.info("Load train info: {}".format(info))
         elif MODEL_PATH != "":
             # 若是第一次训练且预训练模型参数不为空，则加载预训练模型参数
-            model_utils.load_model_params(exe=executor, program=self.origin_train_prog, params_path=MODEL_PATH)
+            model_utils.load_model_params(exe=executor, program=main_prog, params_path=MODEL_PATH)
             self.logger.info("Pre-trained model file in {} has been loaded".format(MODEL_PATH))
+
+        return {'total_step': total_step, 'total_epoch': total_epoch, 'step_in_epoch': step_in_epoch}
+
+    def _set_data_source(self, data_loader, data_source):
+        data_loader.set_sample_list_generator(data_source, places=self.get_data_run_places(self.args))
+
+    def train(self, train_data_reader, valid_data_reader):
+        """
+        用于训练流程，根据参数完成训练，并使用验证数据对模型效果进行验证
+        :return: 无
+        """
+        APP_NAME = self.args["app_name"]
+        MAX_EPOCH = self.args["max_epoch"]
+        EARLY_STOPPING = self.args["early_stopping"]
+        if EARLY_STOPPING:
+            THRESHOLD = self.args["early_stopping_threshold"]
+            STANDSTILL_STEP = self.args["early_stopping_stand_times"]
+        VALIDATE = self.args["do_validate"]
+
+        # 设置数据集
+        self._set_data_source(self.train_data_loader, train_data_reader)
+        self._set_data_source(self.valid_data_loader, valid_data_reader)
+
+        # 定义执行器
+        executor = self.executor
+
+        total_step = self.train_status['total_step']
+        step_in_epoch = self.train_status['step_in_epoch']
+        total_epoch = self.train_status['total_epoch']
 
         self.logger.info("Ready to train the model.Executing...")
 
@@ -202,9 +260,10 @@ class TrainEngine(object):
 
             step_in_epoch = 0
             self.logger.info('Epoch {epoch} done, train mean loss is {loss}'.format(epoch=epoch_id, loss=loss))
-            # 进行一次验证集上的验证
-            valid_loss, valid_acc = self.__valid(executor)
-            self.logger.info(' Epoch {epoch} Validated'.format(epoch=epoch_id))
+            if VALIDATE:
+                # 进行一次验证集上的验证
+                valid_loss, valid_acc = self.__valid(executor)
+                self.logger.info(' Epoch {epoch} Validated'.format(epoch=epoch_id))
             # 进行保存
             info = {
                 "total_step": total_step,
@@ -215,7 +274,7 @@ class TrainEngine(object):
                                                         train_info=info)
             self.logger.info("Snapshot of training process has been saved as folder {}".format(file_path))
             # 应用早停策略
-            if EARLY_STOPPING:
+            if EARLY_STOPPING and VALIDATE:
                 need_stop = self.early_stopping_strategy(-valid_acc, threshold=THRESHOLD, standstill_step=STANDSTILL_STEP)
                 if need_stop:
                     self.logger.info("Performance improvement stalled, ending the training process")
@@ -246,7 +305,8 @@ class TrainEngine(object):
             # 为获取字段名，这里需要改
             if step_in_epoch != 0 and step <= step_in_epoch:
                 continue
-            batch_size = data[0]['qas_ids'].shape()[0]
+            data_key = list(data[0].keys())[0]
+            batch_size = data[0][data_key].shape()[0]
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
                 self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
@@ -301,8 +361,8 @@ class TrainEngine(object):
             if USE_PARALLEL and batch_size < NUM_OF_DEVICE:
                 self.logger.warning("Batch size less than the number of devices. Batch aborted.")
                 continue
-            fetch_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_loss,
-                                                                                       self.valid_accuracy])
+            fetch_value = exe.run(program=self.valid_main_prog, feed=data, fetch_list=[self.valid_fetch_data['loss'],
+                                                                                       self.valid_fetch_data['acc']])
             total_loss += fetch_value[0]
             batch_loss += fetch_value[0]
             total_accuracy += fetch_value[1]
@@ -375,7 +435,8 @@ class TrainEngine(object):
             self.pre_epoch_valid_loss = current_valid_loss
         return False
 
-    def _exclude_from_weight_decay(self, name):
+    @staticmethod
+    def _exclude_from_weight_decay(name):
         """exclude_from_weight_decay"""
         if name.find("layer_norm") > -1:
             return True
@@ -384,7 +445,3 @@ class TrainEngine(object):
             if name.endswith(suffix):
                 return True
         return False
-
-
-
-

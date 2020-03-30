@@ -13,12 +13,20 @@ from model.capsLayer import CapsLayer
 from model.highway import highway_layer
 
 
-# 搭建分类模型
-# 被训练模块和预测模块直接调用
-# 返回相关的计算结果和对应的dataloader对象
+
 def create_model(args,
                  vocab_size,
-                 is_prediction=False):
+                 is_prediction=False, is_validate=False):
+    """
+    搭建分类模型
+    被训练模块和预测模块直接调用
+    返回相关的计算结果和对应的dataloader对象
+    :param args: 参数
+    :param vocab_size: 词典大小，用于构建词嵌入层。注意当参数设置词典大小时，该项无效
+    :param is_prediction: 是否是预测模式，将禁用dropout等。
+    :param is_validate: 是否是验证模式，除了禁用dropout，还将返回loss和acc，如果输入数据中没有对应项，则会报错。
+    :return:
+    """
     # 处理词典大小
     if args['vocab_size'] > 0:
         vocab_size = args['vocab_size']
@@ -50,7 +58,7 @@ def create_model(args,
         input_mask=input_mask,
         config=config,
         use_fp16=False,
-        is_prediction=is_prediction)
+        is_prediction=(is_prediction or is_validate))
 
     mrc_layer = config['mrc_layer']
     freeze_pretrained_model = config['freeze_pretrained_model']
@@ -68,7 +76,7 @@ def create_model(args,
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
             dropout_prob=0.1,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_implementation="upscale_in_train")
         logits = fluid.layers.fc(
             input=cls_feats,
@@ -108,7 +116,7 @@ def create_model(args,
         encoded = bert_encode[:, 1:, :]
         encoded = fluid.layers.dropout(
             x=encoded,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         outputs = fluid.layers.rnn(cell, encoded)[0][:, -1, :]
@@ -118,7 +126,7 @@ def create_model(args,
         cls_feats = outputs
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         # fc = fluid.layers.fc(input=cls_feats, size=hidden_size*2)
@@ -144,14 +152,14 @@ def create_model(args,
         encoded = bert_encode[:, 1:, :]
         encoded = fluid.layers.dropout(
             x=encoded,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
 
         encoded = highway_layer(encoded, name="highway1", num_flatten_dims=2)
         encoded = fluid.layers.dropout(
             x=encoded,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
 
@@ -162,7 +170,7 @@ def create_model(args,
         cls_feats = outputs
         cls_feats = fluid.layers.dropout(
             x=cls_feats,
-            is_test=is_prediction,
+            is_test=(is_prediction or is_validate),
             dropout_prob=0.1,
             dropout_implementation="upscale_in_train")
         # fc = fluid.layers.fc(input=cls_feats, size=hidden_size*2)
@@ -181,7 +189,7 @@ def create_model(args,
 
     # 根据任务返回不同的结果
     # 预测任务仅返回dataloader和预测出的每个label对应的概率
-    if is_prediction:
+    if is_prediction and not is_validate:
         probs = fluid.layers.softmax(logits)
         return reader, probs, qas_ids
 

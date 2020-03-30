@@ -45,10 +45,11 @@ class PredictEngine(object):
         self.logger.info("Initializing predict model...")
         self.exe = fluid.Executor(TrainEngine.get_executor_run_places(self.args))
         with fluid.program_guard(self.predict_program, self.predict_startup):
-            # 根据gzl的模型来定义网络，输出占位符
-            loader, probs, qas_id = create_model(args=self.args_model_build, vocab_size=vocab_size,
-                                                 is_prediction=True)
-            self.logger.info("Prediction neural network created.")
+            with fluid.unique_name.guard():
+                # 根据gzl的模型来定义网络，输出占位符
+                loader, probs, qas_id = create_model(args=self.args_model_build, vocab_size=vocab_size,
+                                                     is_prediction=True)
+                self.logger.info("Prediction neural network created.")
 
         self.logger.info("Prediction neural network parameter initialized.")
 

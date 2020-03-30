@@ -57,10 +57,9 @@ if __name__ == "__main__":
     # predict_batch_reader = predict_preprocess.batch_generator()
 
     # 训练过程
-    train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
-                               args=param, logger=logger)
+    train_engine = TrainEngine(train_vocab_size, params=param, logger=logger)
     t1 = time.time()
-    train_engine.train()
+    train_engine.train(train_batch_reader, valid_batch_reader)
     t2 = time.time()
     print(t2-t1)
 

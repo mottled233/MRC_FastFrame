@@ -10,6 +10,7 @@ from data.Dataset import Dataset
 from data.Corpus_cleaner import Corpus_cleaner
 from preprocess.preprocess import PreProcess
 from preprocess.preprocess_for_pretrain import ProcessorForPretraining
+from preprocess.preprocess_for_qa import ProcessorForPretrainingQa
 
 from util.util_parameter import UtilParameter as UParam
 from util.util_logging import UtilLogging as ULog
@@ -71,12 +72,21 @@ if __name__ == "__main__":
     example_info = util_tool.trans_exam_list_to_colum(validset)
     predict_engine.write_full_info(attach_data=example_info)
     """
-    corpus_cleaner = Corpus_cleaner()
-    corpus_cleaner.read_from_txt("corpus.txt")
-    docs = corpus_cleaner.get_docs()
+    # corpus_cleaner = Corpus_cleaner()
+    # corpus_cleaner.read_from_txt("corpus.txt")
+    # docs = corpus_cleaner.get_docs()
 
-    #docs = ['我叫郭志龙。你叫什么']
-    processor = ProcessorForPretraining(logger=logger, args=param.get_config(param.DATASET), docs=docs)
+    questions =[]
+    answers =[]
+    with open("questions.txt",'r',encoding='utf-8') as f1:
+        for line in f1:
+            questions.append(line[:-1])
+    with open("answers.txt",'r',encoding='utf-8') as f2:
+        for line in f2:
+            answers.append(line[:-1])
+    # questions = ["屏障能抵消点燃么","霍营属于回龙观吗","孟加拉国只能做信用证吗","狮虎兽可育吗"]
+    # answers = ["用屏障来抵挡引燃显然是不切实际的。","两个地方,离得没多远,地铁一站地。","是必须要有一部分是信用证结算,不是全部金额都要求是","理论上狮虎兽是不能产生后代的,但这种可能性也是有的。"]
+    processor = ProcessorForPretrainingQa(logger=logger, args=param.get_config(param.DATASET), questions=questions, answers=answers)
     processor.convert_docs_to_features()
     pretrain_vocab_size = processor.get_vocab_size()
     pretrain_batch_reader = processor.data_generator

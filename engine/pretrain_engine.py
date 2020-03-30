@@ -57,7 +57,7 @@ class PreTrainEngine(object):
             with fluid.unique_name.guard():
                 self.logger.info("Initializing training neural network...")
                 # train_data_loader, train_loss = network(self.args, train=True)  # 一些网络定义
-                train_data_loader, next_sent_acc, mean_mask_lm_loss, loss = \
+                train_data_loader, qa_acc, mean_mask_lm_loss, loss = \
                     classifier.create_model_for_pretrain(args.get_config(args.MODEL_BUILD),
                                                          vocab_size=pretrain_vocab_size)
 
@@ -66,7 +66,7 @@ class PreTrainEngine(object):
                 # 获取训练策略
                 self.logger.info("Setting training strategy...")
                 learning_rate = lr_strategy.get_strategy(self.args)
-                optimizer = model.optimizer.get_optimizer(learning_rate, self.args, regularization=None)
+                optimizer = model.optimizer.get_optimizer(learning_rate, self.args)
                 optimizer.minimize(loss)
                 self.logger.info("Training strategy has been set.")
 
@@ -75,7 +75,7 @@ class PreTrainEngine(object):
         self.train_data_loader = train_data_loader
         self.optimizer = optimizer
         self.train_loss = loss
-        self.next_sent_acc = next_sent_acc
+        self.qa_acc = qa_acc
         self.logger.info("Training process initialized.")
 
         '''
@@ -183,10 +183,10 @@ class PreTrainEngine(object):
         step_acc = 0
         for step, data in enumerate(self.train_data_loader()):
             # 为获取字段名，这里需要改
-            if step <= step_in_epoch:
+            if step_in_epoch != 0 and step <= step_in_epoch:
                 continue
             loss_value, acc = executor.run(program=self.train_main_prog, feed=data,
-                                      fetch_list=[self.train_loss, self.next_sent_acc])
+                                      fetch_list=[self.train_loss, self.qa_acc])
             total_loss += loss_value[0]
             step_loss += loss_value[0]
             step_acc += acc[0]
@@ -272,7 +272,3 @@ class PreTrainEngine(object):
             self.standstill_count = 0
             self.pre_epoch_valid_loss = current_valid_loss
         return False
-
-
-
-

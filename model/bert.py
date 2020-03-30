@@ -225,8 +225,8 @@ class BertModel(object):
             input=next_sent_feat,
             size=2,
             param_attr=fluid.ParamAttr(
-                name="next_sent_fc.w_0", initializer=self._param_initializer),
-            bias_attr="next_sent_fc.b_0")
+                name="qa_fc.w_0", initializer=self._param_initializer),
+            bias_attr="qa_fc.b_0")
 
         # 计算next_sentence部分的loss
         next_sent_loss, next_sent_softmax = fluid.layers.softmax_with_cross_entropy(

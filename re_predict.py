@@ -33,7 +33,7 @@ if __name__ == "__main__":
     # 设置参数
     param = UParam()
     param.read_config_file("config_roberta_large")
-    args = param.get_config(param.GLOBAL)
+    args = param.get_config(param.PREDICT)
     # 初始化日志
     logger = ULog(param)
 
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     new_data_name = "{}_re_predict_data".format(app_name)
     new_result_name = "{}_re_predict_out".format(app_name)
     final_result_name = "{}_final_out".format(app_name)
-    threshold = 0.8
-    mix_rate = 0.6
-    decay_rate = 15
-    select_threshold = 0.4
+    threshold = args["re_predict_threshold"]
+    mix_rate = args['re_predict_mix_rate']
+    decay_rate = args['re_predict_decay_rate']
+    select_threshold = args['re_predict_select_threshold']
 
     '''
     预测过程
@@ -58,21 +58,22 @@ if __name__ == "__main__":
     datasets.load_examples()
     trainset, validset, testset = datasets.get_split()
 
-    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset,
+    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
                                     for_prediction=True)
     predict_preprocess.prepare_batch_data(cache_filename="")
     predict_vocab_size = predict_preprocess.get_vocab_size()
     predict_batch_reader = predict_preprocess.batch_generator()
-    #
-    predict_engine = PredictEngine(param=param, logger=logger, vocab_size=predict_vocab_size)
-    # predict_engine.init_model(vocab_size=predict_vocab_size)
+
+    predict_engine = PredictEngine(param=param, logger=logger, vocab_size=1)
+    predict_engine.init_model(vocab_size=predict_vocab_size)
 
     predict_engine.predict(predict_batch_reader)
-    example_info = util_tool.trans_exam_list_to_colum(validset)
+    example_info = util_tool.trans_exam_list_to_colum(testset)
     predict_engine.write_full_info(attach_data=example_info)
 
     df_ori = pd.read_json(file_name, "records")
-    logger.info("first stage acc:{}".format(len(df_ori[df_ori.yesno_answer == df_ori.yes_or_no]) / len(df_ori)))
+    # logger.info("first stage acc:{}".format(len(df_ori[df_ori.yesno_answer == df_ori.yes_or_no]) / len(df_ori)))
+    logger.info("first stage finished")
 
     '''
     新数据集创建
@@ -172,8 +173,8 @@ if __name__ == "__main__":
                 count = 1
 
         df_mid = pd.read_json(json.dumps(reduce_list), 'records')
-        print(len(df_mid[df_mid.yesno_answer == df_mid.yes_or_no]) / len(df_mid))
-        print(len(df_raw[df_raw.yesno_answer == df_raw.yes_or_no]) / len(df_raw))
+        # print(len(df_mid[df_mid.yesno_answer == df_mid.yes_or_no]) / len(df_mid))
+        # print(len(df_raw[df_raw.yesno_answer == df_raw.yes_or_no]) / len(df_raw))
         pos = 0
         new_result = []
         for idx, row in df.iterrows():
@@ -190,8 +191,8 @@ if __name__ == "__main__":
                 example["No"] = row["No"]
                 example["Depends"] = row["Depends"]
                 example["yesno_answer"] = row["yesno_answer"]
-            if row["yesno_answer"] == "Depends":
-                example["yesno_answer"] = "Depends"
+            # if row["yesno_answer"] == "Depends":
+            #     example["yesno_answer"] = "Depends"
             example["question"] = row["question"],
             example["question"] = example["question"][0]
             example["answer"] = row["answer"],
@@ -202,7 +203,7 @@ if __name__ == "__main__":
     final_output = fuse(mix_rate, decay_rate, select_threshold, df_raw=df_raw)
     final_df = pd.read_json(json.dumps(final_output), 'records')
     f_c_df = final_df[final_df.yes_or_no == final_df.yesno_answer]
-    logger.info("second stage acc: {}".format(len(f_c_df)/len(final_df)))
-
+    # logger.info("second stage acc: {}".format(len(f_c_df)/len(final_df)))
+    logger.info("second stage finshed")
     file_utils.save_file(content=final_output, file_name=final_result_name, file_type="result", file_format="json")
 

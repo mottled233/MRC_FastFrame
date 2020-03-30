@@ -16,7 +16,7 @@ import util.util_tool as util_tool
 if __name__ == "__main__":
     # 设置参数
     param = UParam()
-    param.read_config_file("config_ernie")
+    param.read_config_file("config_roberta_large")
     param.set_config(sys.argv[1:])
     args = param.get_config(param.GLOBAL)
     # 初始化日志
@@ -50,11 +50,11 @@ if __name__ == "__main__":
     valid_vocab_size = valid_preprocess.get_vocab_size()
     valid_batch_reader = valid_preprocess.batch_generator()
     # # 预测数据预处理
-    predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
-                                    for_prediction=True)
-    predict_preprocess.prepare_batch_data(cache_filename="")
-    predict_vocab_size = predict_preprocess.get_vocab_size()
-    predict_batch_reader = predict_preprocess.batch_generator()
+    # predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
+    #                                 for_prediction=True)
+    # predict_preprocess.prepare_batch_data(cache_filename="")
+    # predict_vocab_size = predict_preprocess.get_vocab_size()
+    # predict_batch_reader = predict_preprocess.batch_generator()
 
     # 训练过程
     train_engine = TrainEngine(train_batch_reader, train_vocab_size, valid_batch_reader, valid_vocab_size,
@@ -67,6 +67,7 @@ if __name__ == "__main__":
     # # 预测过程
     # predict_engine = PredictEngine(param=param, logger=logger, vocab_size=predict_vocab_size)
     # predict_engine.predict(predict_batch_reader)
-    # # example_info = util_tool.trans_exam_list_to_colum(validset)
-    # predict_engine.write_to_json()
+    # example_info = util_tool.trans_exam_list_to_colum(testset)
+    # predict_engine.write_full_info(attach_data=example_info)
+    # predict_engine.write_full_info()
 

@@ -101,7 +101,7 @@ def create_model(args,
         logits = fluid.layers.squeeze(v_length, axes=[2, 3])
 
     elif mrc_layer == "lstm":
-        hidden_size = 64
+        hidden_size = args['lstm_hidden_size']
 
         cell = fluid.layers.LSTMCell(hidden_size=hidden_size)
         cell_r = fluid.layers.LSTMCell(hidden_size=hidden_size)
@@ -235,9 +235,9 @@ def create_model_for_pretrain(args, vocab_size):
     next_sent_acc, mean_mask_lm_loss, loss = results
     return reader, next_sent_acc, mean_mask_lm_loss, loss
 
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+

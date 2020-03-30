@@ -36,6 +36,7 @@
     "hidden_dropout_prob":{"type":"float","description":"除attention参数外的dropout率","default":0.1},
     "attention_dropout_prob":{"type":"float","description":"attention参数的dropout率","default":0.1},
     "initializer_range":{"type":"float","description":"参数随机初始化时的标准差","default":0.02},
+    "lstm_hidden_size": {"type":"int","description":"LSTM隐层单元大小","default":128},
     "mrc_layer":{"type":"string","description":"机器阅读理解层","default":"cls_fc"},
     "freeze_pretrained_model":{"type":"bool","description":"是否冻结预训练模型参数","default":false}
 },
@@ -72,5 +73,9 @@
     "print_per_step":{"type":"int", "description":"每隔多少步打印一次信息，若小于1则不打印", "default": 10}
 },
 "predict": {
-  }
+    "re_predict_threshold": {"type":"float","description":"进行分句重判断的阈值","default":0.8},
+    "re_predict_mix_rate": {"type":"float","description":"分句重判断结果与原结果混合比率","default":0.6},
+    "re_predict_decay_rate": {"type":"float","description":"分句重判断分句概率衰减比率","default":15},
+    "re_predict_select_threshold": {"type":"float","description":"分句重判断分句置信度高于阈值才会被选取","default":0.4}
+}
 }

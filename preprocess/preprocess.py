@@ -3,6 +3,7 @@ import paddle.fluid as fluid
 from util.util_filepath import *
 from util.util_logging import UtilLogging as ULog
 from preprocess.tokenizer_CHN import ChnTokenizer as CToken
+from preprocess.tokenizer_engineer import EngnieerTokenizer
 from preprocess.batching import *
 from preprocess.util_preprocess import *
 import random
@@ -10,7 +11,7 @@ import random
 
 class Feature(object):
 
-    def __init__(self, qas_id, src_id, pos_id, sent_id, input_mask, label):
+    def __init__(self, qas_id, src_id, pos_id, sent_id, input_mask, label, engineer_id):
 
         self.qas_id = qas_id
         self.src_id = src_id
@@ -18,7 +19,7 @@ class Feature(object):
         self.sent_id = sent_id
         self.input_mask = input_mask
         self.label = label
-
+        self.engineer_id = engineer_id
 
 class PreProcess:
 
@@ -37,6 +38,9 @@ class PreProcess:
 
         # self.logger.info("Prepare to build tokenizer ……")
         self.c_token = CToken(
+            self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
+        )
+        self.engineer_token = EngnieerTokenizer(
             self.args["vocab_name"], self.args["vocab_format"], self.args["vocab_type"], self.args["do_lowercase"]
         )
         self.logger.info("Successfully build tokenizer")
@@ -215,6 +219,43 @@ class PreProcess:
 
         return batch_tokens, total_token_num
 
+    def get_engineer_ids(self, cache_name=""):
+        """
+        获取特征工程特征
+        """
+        engineer_ids = None
+        if cache_name != "":
+            cache_name = cache_name + "_engineer"
+        if cache_name != "" and os.path.exists(
+                get_fullurl(file_type="engineer", file_name=cache_name, file_format="pickle")):
+            engineer_ids = read_file(file_type="engineer", file_name=cache_name, file_format="pickle")
+        else:
+            sent_ids = []
+            count = 0
+            for example in self.examples:
+                question = example.question
+                answer = example.answer
+                entity_same = 0
+                # if self.engineer_token.entity_sim(question,answer):
+                #     entity_same = 1
+                ques_id_list = self.engineer_token.convert_tokens_to_ids(self.engineer_token.tokenize(question))
+                ans_id_list = self.engineer_token.convert_tokens_to_ids(self.engineer_token.tokenize(answer))
+                special_char = {"CLS": 1, "SEP": 2, "MASK": 3, "PAD": 0}
+                if len(ques_id_list) + len(ans_id_list) > self.max_seq_length - 3:
+                    ques_id_list, ans_id_list = self._truncate_seq_pair(ques_id_list, ans_id_list)
+                sent = [special_char["CLS"]] + ques_id_list + [special_char["SEP"]] + ans_id_list + [special_char["SEP"]]
+                # pad_sent = sent + [special_char["PAD"]] * (self.max_seq_length - len(sent)) + [entity_same]
+                pad_sent = sent + [special_char["PAD"]] * (self.max_seq_length - len(sent))
+                sent_ids.append(pad_sent)
+                count += 1
+                if count % 1000 == 0:
+                    print("engineer_ids has get {}".format(count))
+            engineer_ids = np.array(sent_ids)
+            # engineer_ids = engineer_ids.astype("int64").reshape([-1, self.max_seq_length+1, 1])
+            engineer_ids = engineer_ids.astype("int64").reshape([-1, self.max_seq_length, 1])
+            save_file(content=engineer_ids, file_type="engineer", file_name=cache_name, file_format="pickle")
+        return engineer_ids
+
     def prepare_batch_data(self, cache_filename="", file_format="pickle", file_type="datap"):
         """
         先从指定文件获取batch_tokens与total_token_num数据
@@ -232,6 +273,9 @@ class PreProcess:
         out = self.pad_batch_data(batch_tokens, self.max_seq_length,
                                   return_pos=True, return_sent=True, return_input_mask=True)
         src_ids, pos_ids, sent_ids, input_masks = out[0], out[1], out[2], out[3]
+        engineer_ids = np.random.randint(0,20,(len(self.examples), self.max_seq_length, 1))
+        if self.args['use_engineer']:
+            engineer_ids = self.get_engineer_ids(cache_filename)
         qas_ids = []
         labels = []
         temp = {"Yes": 0, "No": 1, "Depends": 2}
@@ -251,7 +295,7 @@ class PreProcess:
         self.features = []
         for i in range(len(self.examples)):
             self.features.append(Feature(
-                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i]
+                qas_ids[i], src_ids[i], pos_ids[i], sent_ids[i], input_masks[i], labels[i], engineer_ids[i]
             ))
         self.logger.info("  - Complete constructing features object")
         self.logger.info("Finish data-preprocessing")
@@ -263,10 +307,16 @@ class PreProcess:
             random.shuffle(self.features)
         if not self.for_prediction:
             for feature in self.features:
-                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
+                if self.args['use_engineer']:
+                    yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label, feature.engineer_id
+                else:
+                    yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.label
         else:
             for feature in self.features:
-                yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask
+                if self.args['use_engineer']:
+                    yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask, feature.engineer_id
+                else:
+                    yield feature.qas_id, feature.src_id, feature.pos_id, feature.sent_id, feature.input_mask
 
     def batch_generator(self):
 

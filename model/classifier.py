@@ -38,11 +38,15 @@ def create_model(args,
     sent_ids = fluid.data(name='sent_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     input_mask = fluid.data(name='input_mask', dtype='float32', shape=[-1, args['max_seq_length'], 1])
     labels = fluid.data(name='labels', dtype='int64', shape=[-1, 1])
+    # engineer_ids = fluid.data(name='engineer_ids', dtype='int64', shape=[-1, args['max_seq_length']+1, 1])
+    engineer_ids = fluid.data(name='engineer_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
     if is_prediction:
         feed_list = [qas_ids, src_ids, pos_ids, sent_ids, input_mask]
     else:
         feed_list = [qas_ids, src_ids, pos_ids, sent_ids, input_mask, labels]
+    if config['use_engineer']:
+        feed_list.append(engineer_ids)
     reader = fluid.io.DataLoader.from_generator(feed_list=feed_list, capacity=64, iterable=True)
 
     # 模型部分
@@ -69,6 +73,13 @@ def create_model(args,
     if freeze_pretrained_model:
         cls_feats.stop_gradient = True
         bert_encode.stop_gradient = True
+
+    if config['use_engineer']:
+        # entity_sim = engineer_ids[:,-1,:]
+        # entity_sim_code = fluid.layers.one_hot(input=entity_sim, depth=2, allow_out_of_range=False)
+        # engineer_emb = fluid.layers.embedding(input=engineer_ids[:,:-1,:], size=[32, 8])
+        engineer_emb = fluid.layers.embedding(input=engineer_ids, size=[32, 8])
+        bert_encode = fluid.layers.concat(input=[bert_encode, engineer_emb], axis=-1)
 
     logits = None
     if mrc_layer == "cls_fc":

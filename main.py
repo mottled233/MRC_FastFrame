@@ -41,18 +41,18 @@ if __name__ == "__main__":
 
     # 训练数据预处理
     train_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=trainset)
-    train_preprocess.prepare_batch_data()
+    train_preprocess.prepare_batch_data(cache_filename="train_features")
     train_vocab_size = train_preprocess.get_vocab_size()
     train_batch_reader = train_preprocess.batch_generator()
     # 验证数据预处理
     valid_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=validset)
-    valid_preprocess.prepare_batch_data()
+    valid_preprocess.prepare_batch_data(cache_filename="valid_features")
     valid_vocab_size = valid_preprocess.get_vocab_size()
     valid_batch_reader = valid_preprocess.batch_generator()
     # # 预测数据预处理
     # predict_preprocess = PreProcess(logger=logger, args=param.get_config(param.DATASET), examples=testset,
     #                                 for_prediction=True)
-    # predict_preprocess.prepare_batch_data(cache_filename="")
+    # predict_preprocess.prepare_batch_data(cache_filename="predict_features")
     # predict_vocab_size = predict_preprocess.get_vocab_size()
     # predict_batch_reader = predict_preprocess.batch_generator()
 

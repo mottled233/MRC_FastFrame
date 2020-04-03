@@ -7,7 +7,8 @@
     "model_path":{"type":"string","description":"预测使用模型路径","default":""},
     "pretrained_model_type": {"type":"string","description":"预训练模型选用哪个","default":"bert"},
     "do_validate": {"type":"bool","description":"是否进行validate","default":true},
-    "batch_size":{"type":"int","description":"batch的大小","default":32}
+    "batch_size":{"type":"int","description":"batch的大小","default":32},
+    "use_engineer":{"type":"bool","description":"是否加入特征工程信息训练/测试","default":false}
   },
 "dataset":{
     "dataset_path":{"type":"string","description":"数据集路径","default":"File_Directory/dataset"},

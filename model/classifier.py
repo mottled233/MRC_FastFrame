@@ -37,10 +37,13 @@ def create_model(args,
     pos_ids = fluid.data(name='pos_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     sent_ids = fluid.data(name='sent_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
     input_mask = fluid.data(name='input_mask', dtype='float32', shape=[-1, args['max_seq_length'], 1])
+    # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
     labels = fluid.data(name='labels', dtype='int64', shape=[-1, 1])
     # engineer_ids = fluid.data(name='engineer_ids', dtype='int64', shape=[-1, args['max_seq_length']+1, 1])
     engineer_ids = fluid.data(name='engineer_ids', dtype='int64', shape=[-1, args['max_seq_length'], 1])
-    # 根据任务的不同调整所需的数据，预测任务相比训练任务缺少label这一项数据
+
+    config = args
+
     if is_prediction:
         feed_list = [qas_ids, src_ids, pos_ids, sent_ids, input_mask]
     else:
@@ -53,7 +56,6 @@ def create_model(args,
     # 由bert后接一层全连接完成预测任务
 
     # bert部分
-    config = args
     config['vocab_size'] = vocab_size
     bert = BertModel(
         src_ids=src_ids,

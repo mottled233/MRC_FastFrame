@@ -7,6 +7,7 @@ from __future__ import division
 from __future__ import print_function
 
 import paddle.fluid as fluid
+import numpy as np
 
 from model.bert import BertModel
 from model.capsLayer import CapsLayer
@@ -209,7 +210,19 @@ def create_model(args,
     # 训练任务则计算loss
     ce_loss, probs = fluid.layers.softmax_with_cross_entropy(
         logits=logits, label=labels, return_softmax=True)
-    loss = fluid.layers.mean(x=ce_loss)
+    # loss = fluid.layers.mean(x=ce_loss)
+
+    weight = fluid.layers.assign(np.array([[1.], [1.], [1.3]], dtype='float32'))
+    
+    def lossweighed(ce_loss, labels):
+        one_hot = fluid.one_hot(input=labels, depth=args["num_labels"])
+        lw = fluid.layers.matmul(one_hot, weight)
+        lw = fluid.layers.reduce_sum(lw, dim=1)
+        loss = fluid.layers.elementwise_mul(lw, ce_loss)
+        loss = fluid.layers.mean(loss)
+        return loss
+
+    loss = lossweighed(ce_loss, labels)
 
     if args['use_fp16'] and args.loss_scaling > 1.0:
         loss *= args.loss_scaling

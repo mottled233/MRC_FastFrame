@@ -1,0 +1,35 @@
+{
+  "global": {
+    "app_name": "roberta_base",
+    "batch_size": 16,
+    "load_model_path": "File_Directory/pretrained/roberta",
+    "max_seq_length": 512
+  },
+  "dataset": {
+    "vocab_name": "vocab_roberta",
+    "shuffle": true
+  },
+  "build": {
+    "hidden_act": "gelu",
+    "vocab_size": 21128
+  },
+  "train": {
+    "max_epoch": 2,
+    "base_learning_rate": 3e-5,
+    "learning_rate_strategy": "linear_warm_up_and_decay",
+    "warm_up_step": 800,
+    "decay_step": 8000,
+    "start_learning_rate": 0,
+    "end_learning_rate": 1e-8,
+    "optimizer": "adam",
+    "regularization": "L2",
+    "regularization_coeff": 0.01,
+    "read_checkpoint": false,
+    "print_per_step": 100,
+    "snapshot_frequency": 1000,
+    "validate_frequency_step": 1000
+  },
+  "predict": {
+
+  }
+}

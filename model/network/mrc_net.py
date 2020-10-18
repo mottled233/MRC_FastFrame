@@ -143,7 +143,7 @@ class MRCNet(Network):
         start_loss = compute_loss(start_logits, start_positions)
         end_loss = compute_loss(end_logits, end_positions)
         total_loss = (start_loss + end_loss) / 2.0
-        fetch_val = {'total_loss': total_loss,
+        fetch_val = {'loss': total_loss,
                      'unique_ids': unique_ids,
                      'start_logits': start_logits,
                      'end_logits': end_logits,

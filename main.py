@@ -34,8 +34,8 @@ if __name__ == "__main__":
     valid_preprocess = Preprocess(args=dataset_args, examples=valid_dataset.get_examples(),
                                   cache=dataset_args['dev_feature_file_name'])
     valid_data_generator = valid_preprocess.do_preprocess()
-    valid_data = {'features': valid_data_generator.get_features(), 'examples': valid_dataset.get_examples(),
-                    'valid_file_path': dataset_args['valid_file_path']}
+    valid_data = {'features': valid_preprocess.get_features(), 'examples': valid_dataset.get_examples(),
+                    'dev_file_path': dataset_args['dev_file_path']}
 
     # 预测数据预处理
     predict_dataset = Dataset(dataset_args)

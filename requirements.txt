@@ -140,7 +140,7 @@ olefile==0.46
 opencv-python==4.2.0.34
 openpyxl==3.0.3
 packaging==20.1
-paddlepaddle==1.8.1
+paddlepaddle==2.4.0
 pandas==1.0.1
 pandocfilters==1.4.2
 paramiko==2.7.1
